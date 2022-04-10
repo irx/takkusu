@@ -42,46 +42,46 @@
 static const char *log_msg[][2] = {
 	{
 		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ TRACE   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;34;7m TRACE   \33[0;1m %s:%d\33[0m %s\n"
+		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;34;7m TRACE   \33[0;1;36m %s:%d\33[0m %s\n"
 	},
 	{
 		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ DEBUG   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;32;7m DEBUG   \33[0;1m %s:%d\33[0m %s\n"
+		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;32;7m DEBUG   \33[0;1;36m %s:%d\33[0m %s\n"
 	},
 	{
 		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ INFO    ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;7m INFO    \33[0;1m %s:%d\33[0m %s\n"
+		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;7m INFO    \33[0;1;36m %s:%d\33[0m %s\n"
 	},
 	{
 		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ WARNING ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;33;7m WARNING \33[0;1m %s:%d\33[0m %s\n"
+		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;33;7m WARNING \33[0;1;36m %s:%d\33[0m %s\n"
 	},
 	{
 		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ ERROR   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;31;7m ERROR   \33[0;1m %s:%d\33[0m %s\n"
+		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;31;7m ERROR   \33[0;1;36m %s:%d\33[0m %s\n"
 	},
 	{
 		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ FATAL   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;35;7m FATAL   \33[0;1m %s:%d\33[0m %s\n"
+		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;35;7m FATAL   \33[0;1;36m %s:%d\33[0m %s\n"
 	}
 };
 
 static struct {
 	int fd[MAX_SINKS], fmt[MAX_SINKS];
-	enum loglvl lvl[MAX_SINKS];
+	enum logmsk mask[MAX_SINKS];
 } sinks;
 
 static size_t nsinks;
 
 int
-log_add_fd_sink(int fd, enum loglvl lvl)
+log_add_fd_sink(int fd, enum logmsk mask)
 {
 	if (nsinks + 1 >= MAX_SINKS) {
 		perror("reached log sinks limit");
 		return 0;
 	}
 	sinks.fmt[nsinks] = isatty(fd);
-	sinks.lvl[nsinks] = lvl;
+	sinks.mask[nsinks] = mask;
 	sinks.fd[nsinks++] = fd;
 	return 1;
 }
@@ -96,7 +96,7 @@ log_print(enum loglvl lvl, const char *file, int line, const char *msg, ...)
 	char buf[MAX_LEN];
 
 	va_start(ap, msg);
-	vsnprintf(buf, BUFSIZ, msg, ap);
+	vsnprintf(buf, MAX_LEN, msg, ap);
 	va_end(ap);
 	if (nsinks < 1) {
 		dprintf(2, "no log sinks; dropped message: %s\n", buf);
@@ -105,7 +105,7 @@ log_print(enum loglvl lvl, const char *file, int line, const char *msg, ...)
 	now = time(NULL);
 	gmtime_r(&now, &tm);
 	for (i = 0; i < nsinks; ++i) {
-		if (sinks.lvl[i] > lvl)
+		if (!((sinks.mask[i] >> lvl) & 1))
 			continue;
 		dprintf(sinks.fd[i], log_msg[lvl][sinks.fmt[i]],
 			tm.tm_year + 1900,
@@ -124,7 +124,7 @@ log_perror(const char *file, int line, const char *msg)
 	char buf[MAX_LEN];
 
 	if (!strerror_r(errno, buf, MAX_LEN))
-		log_print(ERROR, file, line, "%s: %s", msg, buf);
+		log_print(LOGLVL_ERROR, file, line, "%s: %s", msg, buf);
 	else
 		perror("couldn't access error str");
 }

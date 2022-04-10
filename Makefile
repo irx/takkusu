@@ -9,7 +9,7 @@ VERSION = 0.1-rc
 CC = cc
 PREFIX = /usr/local/bin
 INC = -I/usr/local/include
-LIB = -I/usr/local/lib
+LIB = -L/usr/local/lib
 CFLAGS = -std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \
 	${INC} -DVERSION=\"${VERSION}\" -DNEED_STRL
 LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm

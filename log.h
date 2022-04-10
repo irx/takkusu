@@ -26,25 +26,35 @@
  * Simple logging util
  */
 
-#define LOG_TRACE(...) log_print(TRACE, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_DEBUG(...) log_print(DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_INFO(...) log_print(INFO, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_WARNING(...) log_print(WARNING, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_ERROR(...) log_print(ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_FATAL(...) log_print(FATAL, __FILE__, __LINE__, __VA_ARGS__); exit(1)
+#define LOG_TRACE(...) log_print(LOGLVL_TRACE, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_DEBUG(...) log_print(LOGLVL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_INFO(...) log_print(LOGLVL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_WARNING(...) log_print(LOGLVL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR(...) log_print(LOGLVL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_FATAL(...) log_print(LOGLVL_FATAL, __FILE__, __LINE__, __VA_ARGS__); exit(1)
 
 #define LOG_PERROR(msg) log_perror(__FILE__, __LINE__, msg)
 
 enum loglvl {
-	TRACE = 0,
-	DEBUG,
-	INFO,
-	WARNING,
-	ERROR,
-	FATAL,
+	LOGLVL_TRACE = 0,
+	LOGLVL_DEBUG,
+	LOGLVL_INFO,
+	LOGLVL_WARNING,
+	LOGLVL_ERROR,
+	LOGLVL_FATAL,
 	NLOGLVLS
 };
 
-int log_add_fd_sink(int, enum loglvl);
+enum logmsk {
+	LOGMSK_TRACE   = 1 << LOGLVL_TRACE,
+	LOGMSK_DEBUG   = 1 << LOGLVL_DEBUG,
+	LOGMSK_INFO    = 1 << LOGLVL_INFO,
+	LOGMSK_WARNING = 1 << LOGLVL_WARNING,
+	LOGMSK_ERROR   = 1 << LOGLVL_ERROR,
+	LOGMSK_FATAL   = 1 << LOGLVL_FATAL,
+	LOGMSK_ALL     = 0xff
+};
+
+int log_add_fd_sink(int, enum logmsk);
 void log_print(enum loglvl, const char *, int, const char *, ...);
 void log_perror(const char *, int, const char *);

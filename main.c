@@ -58,9 +58,23 @@ main(void)
 	Image *img;
 	int x, y, player;
 	Entity e;
+	enum loglvl logging_level;
 
-	log_add_fd_sink(1, TRACE);
-	log_add_fd_sink(2, ERROR);
+	logging_level = LOGLVL_TRACE; /* TODO arg parse */
+	switch (logging_level) {
+	case LOGLVL_WARNING:
+		log_add_fd_sink(1, LOGMSK_WARNING);
+		break;
+	case LOGLVL_INFO:
+		log_add_fd_sink(1, LOGMSK_WARNING | LOGMSK_INFO);
+		break;
+	case LOGLVL_DEBUG:
+		log_add_fd_sink(1, LOGMSK_WARNING | LOGMSK_INFO | LOGMSK_DEBUG);
+		break;
+	default:
+		log_add_fd_sink(1, LOGMSK_ALL ^ (LOGMSK_ERROR | LOGMSK_FATAL));
+	};
+	log_add_fd_sink(2, LOGMSK_ERROR | LOGMSK_FATAL);
 
 	LOG_INFO("initialising graphical context");
 	gc = gc_new();
@@ -136,7 +150,7 @@ main(void)
 		gc_clear(gc);
 		render_objs(gc);
 		//gc_draw(gc, main_font, 200, 200, 0, 1, 0);
-		gc_print(gc, main_font, 32, 400, 1, "> Hello world!", 0);
+		gc_print(gc, main_font, 32, 400, 1, "> Hello world!\n\"The Legend of Tux\"\nZelda-like game test", 0);
 		//gc_print(gc, main_font, 32, 32, 1, "I need scissors 61!", 0);
 		/*
 		gc_print(gc, main_font, 320, 500, 1, "[Yes]  No ", 0);
