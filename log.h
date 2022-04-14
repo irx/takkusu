@@ -26,7 +26,11 @@
  * Simple logging util
  */
 
-#define LOG_TRACE(...) log_print(LOGLVL_TRACE, __FILE__, __LINE__, __VA_ARGS__)
+#ifndef ENABLE_LOG_TRACE
+# define LOG_TRACE(...)
+#else
+# define LOG_TRACE(...) log_print(LOGLVL_TRACE, __FILE__, __LINE__, __VA_ARGS__)
+#endif /* ENABLE_LOG_TRACE */
 #define LOG_DEBUG(...) log_print(LOGLVL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 #define LOG_INFO(...) log_print(LOGLVL_INFO, __FILE__, __LINE__, __VA_ARGS__)
 #define LOG_WARNING(...) log_print(LOGLVL_WARNING, __FILE__, __LINE__, __VA_ARGS__)

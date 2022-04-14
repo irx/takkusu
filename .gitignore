@@ -1,5 +1,6 @@
 *.o
-test
+takkusu
+config.mk
 *.swp
 *.ff
 *.log

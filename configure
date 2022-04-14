@@ -1,0 +1,68 @@
+#!/bin/sh -eu
+# generate config.mk
+
+# shellcheck disable=SC2016,SC1004
+default_CFLAGS='--std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \
+	${INC} -DVERSION=\\"${VERSION}\\" -DBUILD_INFO="\\"${BUILD_INFO}\\""'
+
+CC=
+CFLAGS=
+INC=
+LIB=
+PREFIX=
+static=n
+embed_assets=n
+enable_log_trace=n
+debug_mode=n
+
+usage()
+{
+	cat - <<EOF
+options:
+	--prefix=<path>         Set install path prefix
+	--static                Build statically
+	--embed-assets          Build assets into executable binary
+	--log-trace             Enable \`TRACE' logging level
+	--debug                 Set up debug mode:
+	                        enable trace logging and add \`run' target
+	--include-dirs=<paths>  Custom include directories
+	                        (e.g. -I/usr/local/include -I/my/very/own/path ...)
+	--lib-dirs=<paths>      Custom library directories
+	                        (e.g. -L/usr/local/lib -L/my/very/own/path ...)
+	CC=<compiler>           Specify compiler to use
+	CFLAGS=<flags>          Set custom C flags
+EOF
+	exit 2
+}
+
+for arg ; do
+	case "${arg}" in
+	-h|--help) usage ;;
+	--prefix=*) PREFIX="${arg#*=}" ;;
+	--static) static=y ;;
+	--embed-assets) embed_assets=y ;;
+	--log-trace) enable_log_trace=y ;;
+	--debug) debug_mode=y ;;
+	--include-dirs=*) INC="${arg#*=}" ;;
+	--lib-dirs=*) LIB="${arg#*=}" ;;
+	CC=*) CC="${arg#*=}" ;;
+	CFLAGS=*) CFLAGS="${arg#*=}" ;;
+	*) echo "unknown option \`${arg}'; try $0 --help" ; exit 1
+	esac
+done
+
+[ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
+[ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
+
+printf '# generated on %s\n\n' "$(date)" > config.mk
+{
+	echo "BUILD_INFO = $(uname -r) $(uname -m)"
+	[ -n "${INC}" ] && echo "INC = ${INC}"
+	[ -n "${LIB}" ] && echo "LIB = ${LIB}"
+	[ -n "${CC}" ] && echo "CC = ${CC}"
+	[ -n "${CFLAGS}" ] && echo "CFLAGS = ${CFLAGS} ${default_CFLAGS}"
+	[ -n "${PREFIX}" ] && echo "PREFIX = ${PREFIX}"
+	[ "${debug_mode}" = "y" ] && printf '\nrun: all\n\t./takkusu\n'
+} >> config.mk
+
+echo "generated new config.mk"
