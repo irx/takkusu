@@ -1,6 +1,9 @@
 *.o
 takkusu
+bin2hdr
 config.mk
+*.gen.h
 *.swp
 *.ff
+*.ff.h
 *.log

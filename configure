@@ -52,6 +52,7 @@ for arg ; do
 done
 
 [ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
+[ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
 
 printf '# generated on %s\n\n' "$(date)" > config.mk

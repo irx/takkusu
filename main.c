@@ -75,6 +75,7 @@ main(void)
 		log_add_fd_sink(1, LOGMSK_ALL ^ (LOGMSK_ERROR | LOGMSK_FATAL));
 	};
 	log_add_fd_sink(2, LOGMSK_ERROR | LOGMSK_FATAL);
+	LOG_INFO("version: %s build: %s", VERSION, BUILD_INFO);
 
 	LOG_INFO("initialising graphical context");
 	gc = gc_new();

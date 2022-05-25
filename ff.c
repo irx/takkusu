@@ -26,7 +26,9 @@
  * Read farbfeld image
  */
 
+#include <unistd.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -36,74 +38,67 @@
 #include "log.h"
 #include "ff.h"
 
+#ifndef EMBED_ASSETS
+# define aopen(...) open(__VA_ARGS__)
+# define aread(...) read(__VA_ARGS__)
+# define aclose(...) close(__VA_ARGS__)
+#endif /* EMBED_ASSETS */
+
 #define MUL_BOUND(x, y) (y > INT_MAX / x || y < INT_MIN / x)
 
 Image *
 ff_load(const char *path)
 {
-	FILE *f;
+	int fd;
 	uint8_t hdr[16];
 	uint16_t *rowbuf;
 	size_t rowsiz, i, j, offs, cur;
 	Image *img;
 
 	LOG_DEBUG("loading image asset: %s", path);
-	if (!(f = fopen(path, "rb"))) {
-		perror("couldn't open file");
+	if ((fd = aopen(path, O_RDONLY)) < 0) {
+		LOG_PERROR("couldn't open file");
 		return NULL;
 	}
-	if (fread(hdr, 1, 16, f) != 16) {
+	if (aread(fd, hdr, 16) != 16) {
 		LOG_PERROR("couldn't read header");
-		fclose(f);
-		return NULL;
+		goto err1;
 	}
 	if (memcmp(hdr, "farbfeld", 8)) {
 		LOG_PERROR("not a farbfeld file");
-		fclose(f);
-		return NULL;
+		goto err1;
 	}
 
-	if (!(img = malloc(sizeof(Image)))) {
+	if (!(img = calloc(sizeof(Image), 1))) {
 		LOG_PERROR("failed to allocate image struct");
-		fclose(f);
-		return NULL;
+		goto err1;
 	}
 	img->w = ntohl(((uint32_t *)hdr)[2]);
 	img->h = ntohl(((uint32_t *)hdr)[3]);
 	/*
 	if (MUL_BOUND(img->w, img->h)) {
-		perror("image size out of boundaries");
-		free(img);
-		fclose(f);
-		return NULL;
+		LOG_PERROR("image size out of boundaries");
+		goto err2;
 	}
 	*/
 	img->siz = img->w * img->h * 4;
-	if (!(img->d = malloc(sizeof(float) * img->siz))) {
+	if (!(img->d = calloc(sizeof(float), img->siz))) {
 		LOG_PERROR("failed to allocate image struct");
-		free(img);
-		fclose(f);
-		return NULL;
+		goto err2;
 	}
 
 	rowsiz = sizeof(uint16_t) * 4 * img->w;
-	if (!(rowbuf = malloc(rowsiz))) {
+	if (!(rowbuf = calloc(rowsiz, 1))) {
 		LOG_PERROR("failed to allocate rowbuf struct");
-		free(img->d);
-		free(img);
-		fclose(f);
-		return NULL;
+		goto err3;
 	}
 
 	cur = 0;
 	for (i = 0; i < img->h; ++i) {
-		if (fread(rowbuf, 1, rowsiz, f) != rowsiz) {
+		if (aread(fd, rowbuf, rowsiz) != rowsiz) {
 			LOG_PERROR("failed to read image row");
 			free(rowbuf);
-			free(img->d);
-			free(img);
-			fclose(f);
-			return NULL;
+			goto err3;
 		}
 		for (j = 0; j < img->w; ++j) {
 			offs = j * 4;
@@ -115,6 +110,12 @@ ff_load(const char *path)
 	}
 
 	free(rowbuf);
-	fclose(f);
+	aclose(fd);
 	return img;
+
+
+err3:	free(img->d);
+err2:	free(img);
+err1:	aclose(fd);
+	return NULL;
 }

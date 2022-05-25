@@ -1,6 +1,6 @@
 .POSIX:
 .PHONY: all clean install run
-.SUFFIXES: .c .h .o .ff.bz2 .ff
+.SUFFIXES: .c .h .o .ff.bz2 .ff .ff.h
 
 VERSION = 0.1-rc
 BUILD_INFO =
@@ -15,7 +15,8 @@ CFLAGS = -std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \
 	${INC} -DVERSION=\"${VERSION}\" -DBUILD_INFO="\"${BUILD_INFO}\""
 LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm
 
-OBJ = log.o render.o ff.o main.o obj.o sched.o
+EXTRA_OBJ =
+OBJ = log.o render.o ff.o main.o obj.o sched.o ${EXTRA_OBJ}
 HDR = log.h render.h ff.h obj.h
 
 -include config.mk
@@ -25,22 +26,30 @@ ASSETS = assets/ibm10x22.ff \
 	assets/grass.ff \
 	assets/sand.ff \
 	assets/sword.ff
+HASSETS = ${ASSETS:.ff=.ff.h}
 
 all: takkusu ${ASSETS}
 
-takkusu: ${OBJ}
+takkusu: ${HDR} ${OBJ}
 	@echo LD $@
 	@${CC} -o $@ ${OBJ} ${LDFLAGS}
 
-.c.o: ${HDR}
+.c.o:
 	@echo CC $<
 	@${CC} -c ${CFLAGS} $<
 
 .ff.bz2.ff:
 	bzip2 -dc $< > $@
 
+.ff.ff.h:
+	./bin2hdr "$<" > $@
+
+assets_data.gen.h: bin2hdr embed_assets.sh ${HASSETS}
+	./embed_assets.sh ${ASSETS}
+
 clean:
-	rm ${OBJ}
+	rm -f ${OBJ}
+	rm -f assets_data.gen.h ${HASSETS}
 
 install: test
 	@echo not implemented yet
