@@ -16,8 +16,9 @@ CFLAGS = -std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \
 LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm
 
 EXTRA_OBJ =
+EXTRA_HDR =
 OBJ = log.o render.o ff.o main.o obj.o sched.o ${EXTRA_OBJ}
-HDR = log.h render.h ff.h obj.h
+HDR = log.h render.h ff.h obj.h ${EXTRA_HDR}
 
 -include config.mk
 

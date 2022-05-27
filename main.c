@@ -37,6 +37,10 @@
 #include "obj.h"
 #include "sched.h"
 
+#ifdef EMBED_ASSETS
+void vfs_init(void);
+#endif /* EMBED_ASSETS */
+
 #define INTERVAL 0.001
 
 typedef struct vec2 {
@@ -76,6 +80,10 @@ main(void)
 	};
 	log_add_fd_sink(2, LOGMSK_ERROR | LOGMSK_FATAL);
 	LOG_INFO("version: %s build: %s", VERSION, BUILD_INFO);
+
+#ifdef EMBED_ASSETS
+	vfs_init();
+#endif /* EMBED_ASSETS */
 
 	LOG_INFO("initialising graphical context");
 	gc = gc_new();

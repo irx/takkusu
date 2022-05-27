@@ -51,7 +51,7 @@ main(int argc, char *argv[])
 			perror("failed to open file");
 			exit(1);
 		}
-		dprintf(1, "static const %s[] = ", name);
+		dprintf(1, "static const unsigned char %s[] = ", name);
 	} else
 		fd = 0;
 	if (!read(fd, &buf, 1)) {
@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 		else
 			dprintf(1, ",\n\t0x%.2x", (unsigned int)buf);
 	}
-	dprintf(1, "\n}\n");
+	dprintf(1, "\n};\n");
 
 	if (argc > 1) {
 		close(fd);

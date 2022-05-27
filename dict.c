@@ -204,7 +204,6 @@ hash(const char *s, unsigned int nhash)
 {
 	unsigned int h;
 	unsigned char *p;
-	int i;
 
 	h = 0;
 	for (p = (unsigned char *)s; *p != '\0'; ++p)

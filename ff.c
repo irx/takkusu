@@ -42,6 +42,10 @@
 # define aopen(...) open(__VA_ARGS__)
 # define aread(...) read(__VA_ARGS__)
 # define aclose(...) close(__VA_ARGS__)
+#else
+int aopen(const char *, int);
+ssize_t aread(int, void *, size_t);
+# define aclose(...)
 #endif /* EMBED_ASSETS */
 
 #define MUL_BOUND(x, y) (y > INT_MAX / x || y < INT_MIN / x)
