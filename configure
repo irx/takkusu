@@ -1,9 +1,8 @@
 #!/bin/sh -eu
 # generate config.mk
 
-# shellcheck disable=SC2016,SC1004
-default_CFLAGS='--std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \
-	${INC} -DVERSION=\\"${VERSION}\\" -DBUILD_INFO="\\"${BUILD_INFO}\\""'
+default_CFLAGS="--std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \\
+	\${INC} -DVERSION=\\\"\${VERSION}\\\" -DBUILD_INFO=\"\\\"\${BUILD_INFO}\\\"\""
 
 CC=
 CFLAGS=

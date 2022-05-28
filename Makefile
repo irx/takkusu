@@ -48,6 +48,8 @@ takkusu: ${HDR} ${OBJ}
 assets_data.gen.h: bin2hdr embed_assets.sh ${HASSETS}
 	./embed_assets.sh ${ASSETS}
 
+vfs.o: assets_data.gen.h
+
 clean:
 	rm -f ${OBJ}
 	rm -f assets_data.gen.h ${HASSETS}
