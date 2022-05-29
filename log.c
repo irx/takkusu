@@ -26,6 +26,10 @@
  * Simple logging util
  */
 
+#ifdef _WIN32 /* disable logs for now */
+#define dprintf(fd, ...)
+#endif /* _WIN32 */
+
 #include <unistd.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -86,6 +90,7 @@ log_add_fd_sink(int fd, enum logmsk mask)
 	return 1;
 }
 
+
 void
 log_print(enum loglvl lvl, const char *file, int line, const char *msg, ...)
 {
@@ -121,10 +126,5 @@ log_print(enum loglvl lvl, const char *file, int line, const char *msg, ...)
 void
 log_perror(const char *file, int line, const char *msg)
 {
-	char buf[MAX_LEN];
-
-	if (!strerror_r(errno, buf, MAX_LEN))
-		log_print(LOGLVL_ERROR, file, line, "%s: %s", msg, buf);
-	else
-		perror("couldn't access error str");
+	log_print(LOGLVL_ERROR, file, line, "%s: %s", msg, strerror(errno));
 }

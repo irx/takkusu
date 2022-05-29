@@ -8,11 +8,12 @@ BUILD_INFO =
 # platform dependent params
 # defaults should be ok for most systems
 CC = cc
+HOSTCC = ${CC}
 PREFIX = /usr/local/bin
 INC = -I/usr/local/include
 LIB = -L/usr/local/lib
-CFLAGS = -std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \
-	${INC} -DVERSION=\"${VERSION}\" -DBUILD_INFO="\"${BUILD_INFO}\""
+CFLAGS = -std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \
+	${INC} -DVERSION=\"${VERSION}\" -DBUILD_INFO="\"${BUILD_INFO}\"" -DGLEW_STATIC
 LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm
 
 EXTRA_OBJ =
@@ -44,6 +45,10 @@ takkusu: ${HDR} ${OBJ}
 
 .ff.ff.h:
 	./bin2hdr "$<" > $@
+
+bin2hdr: bin2hdr.c
+	@echo HOSTCC $<
+	@${HOSTCC} -o $@ $<
 
 assets_data.gen.h: bin2hdr embed_assets.sh ${HASSETS}
 	./embed_assets.sh ${ASSETS}

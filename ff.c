@@ -27,7 +27,11 @@
  */
 
 #include <unistd.h>
-#include <arpa/inet.h>
+#ifndef _WIN32
+# include <arpa/inet.h>
+#else
+# include <winsock.h>
+#endif /* _WIN32 */
 #include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>

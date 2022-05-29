@@ -1,10 +1,11 @@
 #!/bin/sh -eu
 # generate config.mk
 
-default_CFLAGS="--std=c99 -pedantic -Wall -D_DEFAULT_SOURCE -D_BSD_SOURCE \\
-	\${INC} -DVERSION=\\\"\${VERSION}\\\" -DBUILD_INFO=\"\\\"\${BUILD_INFO}\\\"\""
+default_CFLAGS="--std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \\
+	\${INC} -DVERSION=\\\"\${VERSION}\\\" -DBUILD_INFO=\"\\\"\${BUILD_INFO}\\\"\" -DGLEW_STATIC"
 
 CC=
+HOSTCC=
 CFLAGS=
 INC=
 LIB=
@@ -13,6 +14,7 @@ static=n
 embed_assets=n
 enable_log_trace=n
 debug_mode=n
+win32_target=n
 
 usage()
 {
@@ -24,11 +26,14 @@ options:
 	--log-trace             Enable \`TRACE' logging level
 	--debug                 Set up debug mode:
 	                        enable trace logging and add \`run' target
+	--win32                 Build for win32 platform
 	--include-dirs=<paths>  Custom include directories
 	                        (e.g. -I/usr/local/include -I/my/very/own/path ...)
 	--lib-dirs=<paths>      Custom library directories
 	                        (e.g. -L/usr/local/lib -L/my/very/own/path ...)
 	CC=<compiler>           Specify compiler to use
+	HOSTCC=<compiler>       Specify compiler to use for building host binaries;
+							relevant when cross-compiling
 	CFLAGS=<flags>          Set custom C flags
 EOF
 	exit 2
@@ -42,9 +47,11 @@ for arg ; do
 	--embed-assets) embed_assets=y ;;
 	--log-trace) enable_log_trace=y ;;
 	--debug) debug_mode=y ;;
+	--win32) win32_target=y ;;
 	--include-dirs=*) INC="${arg#*=}" ;;
 	--lib-dirs=*) LIB="${arg#*=}" ;;
 	CC=*) CC="${arg#*=}" ;;
+	HOSTCC=*) HOSTCC="${arg#*=}" ;;
 	CFLAGS=*) CFLAGS="${arg#*=}" ;;
 	*) echo "unknown option \`${arg}'; try $0 --help" ; exit 1
 	esac
@@ -60,9 +67,12 @@ printf '# generated on %s\n\n' "$(date)" > config.mk
 	[ -n "${INC}" ] && echo "INC = ${INC}"
 	[ -n "${LIB}" ] && echo "LIB = ${LIB}"
 	[ -n "${CC}" ] && echo "CC = ${CC}"
+	[ -n "${HOSTCC}" ] && echo "HOSTCC = ${HOSTCC}"
 	[ -n "${CFLAGS}" ] && echo "CFLAGS = ${CFLAGS} ${default_CFLAGS}"
 	[ -n "${PREFIX}" ] && echo "PREFIX = ${PREFIX}"
 	[ "${embed_assets}" = "y" ] && echo "EXTRA_OBJ = vfs.o dict.o" && echo "EXTRA_HDR = dict.h assets_data.gen.h"
+	[ "${win32_target}" = "y" ] && echo "LDFLAGS = \${LIB} -lglew32s -lGLEW -lglfw3 -lm -lopengl32 -lws2_32 -lgdi32" \
+		&& printf '\ntakkusu.exe: takkusu\n\tmv $< $@\n'
 	[ "${debug_mode}" = "y" ] && printf '\nrun: all\n\t./takkusu\n'
 } >> config.mk
 
