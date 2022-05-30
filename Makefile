@@ -1,6 +1,6 @@
 .POSIX:
 .PHONY: all clean install run
-.SUFFIXES: .c .h .o .ff.bz2 .ff .ff.h
+.SUFFIXES: .c .h .o .rc .res .ff.bz2 .ff .ff.h
 
 VERSION = 0.1-rc
 BUILD_INFO =
@@ -9,6 +9,7 @@ BUILD_INFO =
 # defaults should be ok for most systems
 CC = cc
 HOSTCC = ${CC}
+WINDRES = windres
 PREFIX = /usr/local/bin
 INC = -I/usr/local/include
 LIB = -L/usr/local/lib
@@ -54,6 +55,10 @@ assets_data.gen.h: bin2hdr embed_assets.sh ${HASSETS}
 	./embed_assets.sh ${ASSETS}
 
 vfs.o: assets_data.gen.h
+
+.rc.res:
+	@echo WINDRES $<
+	@${WINDRES} $< -O coff -o $@
 
 clean:
 	rm -f ${OBJ}

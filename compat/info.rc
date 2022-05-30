@@ -1,0 +1,24 @@
+id ICON "compat/tux.ico"
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "080904E4"
+		BEGIN
+			VALUE "CompanyName", "irx"
+			VALUE "FileDescription", "FLOSS Zelda implementation"
+			VALUE "FileVersion", "1.0"
+			VALUE "InternalName", "takkusu"
+			VALUE "LegalCopyright", "Copyright (c) Max Mruszczak"
+			VALUE "OriginalFilename", "takkusu.exe"
+			VALUE "ProductName", "Legend of Tux"
+			VALUE "ProductVersion", "0.1-rc"
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x809, 1252
+	END
+END

@@ -7,3 +7,4 @@ config.mk
 *.ff
 *.ff.h
 *.log
+compat/*.res

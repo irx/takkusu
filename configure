@@ -1,7 +1,7 @@
 #!/bin/sh -eu
 # generate config.mk
 
-default_CFLAGS="--std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \\
+default_CFLAGS="-std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \\
 	\${INC} -DVERSION=\\\"\${VERSION}\\\" -DBUILD_INFO=\"\\\"\${BUILD_INFO}\\\"\" -DGLEW_STATIC"
 
 CC=
@@ -10,6 +10,9 @@ CFLAGS=
 INC=
 LIB=
 PREFIX=
+TOOLCHAIN=
+EXTRA_OBJ=
+EXTRA_HDR=
 static=n
 embed_assets=n
 enable_log_trace=n
@@ -31,9 +34,11 @@ options:
 	                        (e.g. -I/usr/local/include -I/my/very/own/path ...)
 	--lib-dirs=<paths>      Custom library directories
 	                        (e.g. -L/usr/local/lib -L/my/very/own/path ...)
+	--toolchain=<prefix>    Specify toolchain prefix;
+	                        useful for cross-compilation
 	CC=<compiler>           Specify compiler to use
 	HOSTCC=<compiler>       Specify compiler to use for building host binaries;
-							relevant when cross-compiling
+	                        relevant when cross-compiling
 	CFLAGS=<flags>          Set custom C flags
 EOF
 	exit 2
@@ -50,6 +55,7 @@ for arg ; do
 	--win32) win32_target=y ;;
 	--include-dirs=*) INC="${arg#*=}" ;;
 	--lib-dirs=*) LIB="${arg#*=}" ;;
+	--toolchain=*) TOOLCHAIN="${arg#*=}" ;;
 	CC=*) CC="${arg#*=}" ;;
 	HOSTCC=*) HOSTCC="${arg#*=}" ;;
 	CFLAGS=*) CFLAGS="${arg#*=}" ;;
@@ -58,19 +64,25 @@ for arg ; do
 done
 
 [ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
-[ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS -fPIE"
+[ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS" \
+	&& EXTRA_OBJ="${EXTRA_OBJ} vfs.o dict.o" \
+	&& EXTRA_HDR="${EXTRA_HDR} dict.h assets_data.gen.h"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
+[ "${win32_target}" = "y" ] && EXTRA_OBJ="${EXTRA_OBJ} compat/info.res"
 
 printf '# generated on %s\n\n' "$(date)" > config.mk
 {
 	echo "BUILD_INFO = $(uname -r) $(uname -m)"
+	[ -n "${TOOLCHAIN}" ] \
+		&& printf 'TOOLCHAIN = %s\nCC = %s\nWINDRES = %s\n' "${TOOLCHAIN}" '${TOOLCHAIN}gcc' '${TOOLCHAIN}windres'
 	[ -n "${INC}" ] && echo "INC = ${INC}"
 	[ -n "${LIB}" ] && echo "LIB = ${LIB}"
 	[ -n "${CC}" ] && echo "CC = ${CC}"
 	[ -n "${HOSTCC}" ] && echo "HOSTCC = ${HOSTCC}"
 	[ -n "${CFLAGS}" ] && echo "CFLAGS = ${CFLAGS} ${default_CFLAGS}"
 	[ -n "${PREFIX}" ] && echo "PREFIX = ${PREFIX}"
-	[ "${embed_assets}" = "y" ] && echo "EXTRA_OBJ = vfs.o dict.o" && echo "EXTRA_HDR = dict.h assets_data.gen.h"
+	[ -n "${EXTRA_OBJ}" ] && echo "EXTRA_OBJ = ${EXTRA_OBJ}"
+	[ -n "${EXTRA_HDR}" ] && echo "EXTRA_HDR = ${EXTRA_HDR}"
 	[ "${win32_target}" = "y" ] && echo "LDFLAGS = \${LIB} -lglew32s -lGLEW -lglfw3 -lm -lopengl32 -lws2_32 -lgdi32" \
 		&& printf '\ntakkusu.exe: takkusu\n\tmv $< $@\n'
 	[ "${debug_mode}" = "y" ] && printf '\nrun: all\n\t./takkusu\n'
