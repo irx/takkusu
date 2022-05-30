@@ -1,0 +1,60 @@
+    m                          m
+     #mmmm                      #mm"#       m   mmm
+    #   m"        m            m"   #        """  #
+  m" "mm"       "m #  #       m"   #             #
+     m"          "   #           m"            m" "m
+ mm""              m"          m"          mm""     #
+                       の伝説
+
+
+This is an attempt at implementing a Zelda-like game in ANSI C using a strictly
+limited set of dependencies with portability in mind.
+
+deps:
+ - GLFW3
+ - GLEW
+ - PortAudio (tbd)
+
+
+ =========
+ = BUILD =
+ =========
+
+ unices
+ ------
+
+First fetch required deps.
+On debian-based distros:
+ # apt install libglfw3-dev libglew-dev portaudio19-dev
+Gentoo:
+ # emerge media-libs/glfw media-libs/glew media-libs/portaudio
+Alpine:
+ # apk add glfw-dev glew-dev portaudio-dev
+FreeBSD:
+ # pkg install glfw glew portaudio
+and so on...
+
+Calling `make' alone should do, but it is possible to customise your build,
+see:
+ % ./configure --help
+
+example:
+ % ./configure --embed-assets --prefix=$HOME/.local
+ % make -j 8
+
+
+ windows
+ -------
+
+Cross-compile it using mxe[1]
+
+ % git clone --recursive https://github.com/mxe/mxe.git
+ % make -C mxe glfw glew opengl
+in project dir:
+ % ./configure HOSTCC=cc --win32 --embed-assets \
+   --toolchain="${mxe_path}/usr/bin/i686-w64-mingw32.static-" \
+   --lib-dirs="-L${mxe_path}/usr/i686-w64-mingw32.static/lib"
+ % make -j 8
+
+
+ [1] https://mxe.cc/
