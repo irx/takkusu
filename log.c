@@ -27,7 +27,9 @@
  */
 
 #ifdef _WIN32 /* disable logs for now */
-#define dprintf(fd, ...)
+int dprintf(int, const char *, ...);
+#undef isatty
+int isatty(int);
 #endif /* _WIN32 */
 
 #include <unistd.h>

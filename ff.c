@@ -43,7 +43,11 @@
 #include "ff.h"
 
 #ifndef EMBED_ASSETS
-# define aopen(...) open(__VA_ARGS__)
+# ifndef _WIN32
+#  define aopen(...) open(__VA_ARGS__)
+# else
+#  define aopen(path, flags) open(path, flags | O_BINARY)
+# endif /* _WIN32 */
 # define aread(...) read(__VA_ARGS__)
 # define aclose(...) close(__VA_ARGS__)
 #else

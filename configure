@@ -68,7 +68,7 @@ done
 	&& EXTRA_OBJ="${EXTRA_OBJ} vfs.o dict.o" \
 	&& EXTRA_HDR="${EXTRA_HDR} dict.h assets_data.gen.h"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
-[ "${win32_target}" = "y" ] && EXTRA_OBJ="${EXTRA_OBJ} compat/info.res"
+[ "${win32_target}" = "y" ] && EXTRA_OBJ="${EXTRA_OBJ} compat/info.res compat/w32io.o"
 
 printf '# generated on %s\n\n' "$(date)" > config.mk
 {

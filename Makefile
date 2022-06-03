@@ -39,7 +39,7 @@ takkusu: ${HDR} ${OBJ}
 
 .c.o:
 	@echo CC $<
-	@${CC} -c ${CFLAGS} $<
+	@${CC} -c ${CFLAGS} $< -o $@
 
 .ff.bz2.ff:
 	bzip2 -dc $< > $@
