@@ -6,6 +6,7 @@ default_CFLAGS="-std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SO
 
 CC=
 HOSTCC=
+BIN2HDR=
 CFLAGS=
 INC=
 LIB=
@@ -26,6 +27,9 @@ options:
 	--prefix=<path>         Set install path prefix
 	--static                Build statically
 	--embed-assets          Build assets into executable binary
+	--use-bin2hdr           Build a hand-rolled asset embedding tool as an
+	                        alternative to \`xxd -i' (used by default when
+	                        embedding assets and \`xxd' is not present in PATH)
 	--log-trace             Enable \`TRACE' logging level
 	--debug                 Set up debug mode:
 	                        enable trace logging and add \`run' target
@@ -50,6 +54,7 @@ for arg ; do
 	--prefix=*) PREFIX="${arg#*=}" ;;
 	--static) static=y ;;
 	--embed-assets) embed_assets=y ;;
+	--use-bin2hdr) BIN2HDR="./bin2hdr" ;;
 	--log-trace) enable_log_trace=y ;;
 	--debug) debug_mode=y ;;
 	--win32) win32_target=y ;;
@@ -66,7 +71,8 @@ done
 [ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
 [ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS" \
 	&& EXTRA_OBJ="${EXTRA_OBJ} vfs.o dict.o" \
-	&& EXTRA_HDR="${EXTRA_HDR} dict.h assets_data.gen.h"
+	&& EXTRA_HDR="${EXTRA_HDR} dict.h assets_data.gen.h" \
+	&& [ ! -x "$(command -v xxd)" ] && BIN2HDR="./bin2hdr"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
 [ "${win32_target}" = "y" ] && EXTRA_OBJ="${EXTRA_OBJ} compat/info.res compat/w32io.o"
 
@@ -79,6 +85,7 @@ printf '# generated on %s\n\n' "$(date)" > config.mk
 	[ -n "${LIB}" ] && echo "LIB = ${LIB}"
 	[ -n "${CC}" ] && echo "CC = ${CC}"
 	[ -n "${HOSTCC}" ] && echo "HOSTCC = ${HOSTCC}"
+	[ -n "${BIN2HDR}" ] && echo "BIN2HDR = ${BIN2HDR}"
 	[ -n "${CFLAGS}" ] && echo "CFLAGS = ${CFLAGS} ${default_CFLAGS}"
 	[ -n "${PREFIX}" ] && echo "PREFIX = ${PREFIX}"
 	[ -n "${EXTRA_OBJ}" ] && echo "EXTRA_OBJ = ${EXTRA_OBJ}"
@@ -87,5 +94,9 @@ printf '# generated on %s\n\n' "$(date)" > config.mk
 		&& printf '\ntakkusu.exe: takkusu\n\tmv $< $@\n'
 	[ "${debug_mode}" = "y" ] && printf '\nrun: all\n\t./takkusu\n'
 } >> config.mk
+
+# optionally build `bin2hdr' (binary file to C header converter) as an
+# alternative to xxd
+[ -n "${BIN2HDR}" ] && make bin2hdr
 
 echo "generated new config.mk"

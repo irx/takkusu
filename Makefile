@@ -9,6 +9,7 @@ BUILD_INFO =
 # defaults should be ok for most systems
 CC = cc
 HOSTCC = ${CC}
+BIN2HDR = xxd -i
 WINDRES = windres
 PREFIX = /usr/local/bin
 INC = -I/usr/local/include
@@ -45,13 +46,13 @@ takkusu: ${HDR} ${OBJ}
 	bzip2 -dc $< > $@
 
 .ff.ff.h:
-	./bin2hdr "$<" > $@
+	${BIN2HDR} "$<" > $@
 
 bin2hdr: bin2hdr.c
 	@echo HOSTCC $<
 	@${HOSTCC} -o $@ $<
 
-assets_data.gen.h: bin2hdr embed_assets.sh ${HASSETS}
+assets_data.gen.h: embed_assets.sh ${HASSETS}
 	./embed_assets.sh ${ASSETS}
 
 vfs.o: assets_data.gen.h
