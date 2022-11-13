@@ -26,7 +26,7 @@
  * Simple logging util
  */
 
-#ifdef _WIN32 /* disable logs for now */
+#ifdef _WIN32 /* definitions in `compat/w32io.c' */
 int dprintf(int, const char *, ...);
 #undef isatty
 int isatty(int);
@@ -44,31 +44,39 @@ int isatty(int);
 
 #define MAX_SINKS 4
 #define MAX_LEN 1024
+#define PROGRESSBAR_LEN 20
+#define PROGRESS_INFO_MAX_LEN 64
+
+#define LOG_MSG_TEMPL(lvl) \
+	"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ " lvl " ] %s:%d %s\n"
+#define LOG_MSG_TEMPL_COL(col, lvl) \
+	"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;" col ";7m " lvl \
+	" \33[0;1;36m %s:%d\33[0m %s\n"
 
 static const char *log_msg[][2] = {
 	{
-		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ TRACE   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;34;7m TRACE   \33[0;1;36m %s:%d\33[0m %s\n"
+		LOG_MSG_TEMPL("TRACE  "),
+		LOG_MSG_TEMPL_COL("34", "TRACE  ")
 	},
 	{
-		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ DEBUG   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;32;7m DEBUG   \33[0;1;36m %s:%d\33[0m %s\n"
+		LOG_MSG_TEMPL("DEBUG  "),
+		LOG_MSG_TEMPL_COL("32", "DEBUG  ")
 	},
 	{
-		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ INFO    ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;7m INFO    \33[0;1;36m %s:%d\33[0m %s\n"
+		LOG_MSG_TEMPL("INFO   "),
+		LOG_MSG_TEMPL_COL("0", "INFO   ")
 	},
 	{
-		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ WARNING ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;33;7m WARNING \33[0;1;36m %s:%d\33[0m %s\n"
+		LOG_MSG_TEMPL("WARNING"),
+		LOG_MSG_TEMPL_COL("33", "WARNING")
 	},
 	{
-		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ ERROR   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;31;7m ERROR   \33[0;1;36m %s:%d\33[0m %s\n"
+		LOG_MSG_TEMPL("ERROR  "),
+		LOG_MSG_TEMPL_COL("31", "ERROR  ")
 	},
 	{
-		"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ FATAL   ] %s:%d %s\n",
-		"\33[1;34m%.4d-%.2d-%.2d %.2d:%.2d:%.2d \33[0;35;7m FATAL   \33[0;1;36m %s:%d\33[0m %s\n"
+		LOG_MSG_TEMPL("FATAL  "),
+		LOG_MSG_TEMPL_COL("35", "FATAL  ")
 	}
 };
 
@@ -78,6 +86,31 @@ static struct {
 } sinks;
 
 static size_t nsinks;
+
+static struct {
+	size_t current, target;
+	char info[PROGRESS_INFO_MAX_LEN];
+} progressbar;
+
+static void
+draw_progressbar(void)
+{
+	size_t barlen, i;
+
+	if (!progressbar.target || progressbar.current > progressbar.target || !isatty(1))
+		return;
+	barlen = PROGRESSBAR_LEN * progressbar.current / progressbar.target;
+	dprintf(1, "   \x1b[32m");
+	for (i = 0; i < barlen; ++i)
+		dprintf(1, "─");
+	dprintf(1, "\x1b[30m");
+	for (; i < PROGRESSBAR_LEN; ++i)
+		dprintf(1, "─");
+	dprintf(1, "\x1b[32m  %zu/%zu \x1b[0;1m%s\x1b[0m\r",
+		progressbar.current,
+		progressbar.target,
+		progressbar.info);
+}
 
 int
 log_add_fd_sink(int fd, enum logmsk mask)
@@ -123,10 +156,34 @@ log_print(enum loglvl lvl, const char *file, int line, const char *msg, ...)
 			tm.tm_sec,
 			file, line, buf);
 	}
+	draw_progressbar();
 }
 
 void
 log_perror(const char *file, int line, const char *msg)
 {
 	log_print(LOGLVL_ERROR, file, line, "%s: %s", msg, strerror(errno));
+}
+
+void
+log_update_progress(unsigned int current)
+{
+	progressbar.current = current;
+	draw_progressbar();
+}
+
+void
+log_set_progressbar(unsigned int target, const char *info)
+{
+	size_t i;
+
+	i = 0;
+	if (info) {
+		for (; i < PROGRESS_INFO_MAX_LEN - 1 && info[i] != '\0'; ++i)
+			progressbar.info[i] = info[i];
+	}
+	for (; i < PROGRESS_INFO_MAX_LEN; ++i)
+		progressbar.info[i] = '\0';
+	progressbar.target = target;
+	draw_progressbar();
 }

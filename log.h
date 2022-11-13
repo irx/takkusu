@@ -35,7 +35,7 @@
 #define LOG_INFO(...) log_print(LOGLVL_INFO, __FILE__, __LINE__, __VA_ARGS__)
 #define LOG_WARNING(...) log_print(LOGLVL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
 #define LOG_ERROR(...) log_print(LOGLVL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_FATAL(...) log_print(LOGLVL_FATAL, __FILE__, __LINE__, __VA_ARGS__); exit(1)
+#define LOG_FATAL(...) {log_print(LOGLVL_FATAL, __FILE__, __LINE__, __VA_ARGS__); exit(1);}
 
 #define LOG_PERROR(msg) log_perror(__FILE__, __LINE__, msg)
 
@@ -62,3 +62,5 @@ enum logmsk {
 int log_add_fd_sink(int, enum logmsk);
 void log_print(enum loglvl, const char *, int, const char *, ...);
 void log_perror(const char *, int, const char *);
+void log_update_progress(unsigned int);
+void log_set_progressbar(unsigned int, const char *);
