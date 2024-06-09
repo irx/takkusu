@@ -158,6 +158,8 @@ main(void)
 			tick();
 		gc_clear(gc);
 		render_objs(gc);
+		gc_set_resolution(gc, 1280, 960);
+		//gc_set_resolution(gc, 960, 720);
 		//gc_draw(gc, main_font, 200, 200, 0, 1, 0);
 		gc_print(gc, main_font, 32, 400, 1, "> Hello world!\n\"The Legend of Tux\"\nZelda-like game test", 0);
 		//gc_print(gc, main_font, 32, 32, 1, "I need scissors 61!", 0);

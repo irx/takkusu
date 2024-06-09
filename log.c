@@ -26,12 +26,6 @@
  * Simple logging util
  */
 
-#ifdef _WIN32 /* definitions in `compat/w32io.c' */
-int dprintf(int, const char *, ...);
-#undef isatty
-int isatty(int);
-#endif /* _WIN32 */
-
 #include <unistd.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -40,12 +34,23 @@ int isatty(int);
 #include <string.h>
 #include <time.h>
 
+#ifdef _WIN32 /* definitions in `compat/w32io.c' */
+int dprintf(int, const char *, ...);
+ssize_t __write_w32(int fd, const char *buf, size_t len);
+# undef write
+# define write __write_w32
+# undef isatty
+int isatty(int);
+#endif /* _WIN32 */
+
 #include "log.h"
 
 #define MAX_SINKS 4
-#define MAX_LEN 1024
+#define MAX_LINE_LEN 1024
+#define LOG_BUFSIZ 4096
 #define PROGRESSBAR_LEN 20
 #define PROGRESS_INFO_MAX_LEN 64
+#define PROGRESSBAR_SEGMENT "─"
 
 #define LOG_MSG_TEMPL(lvl) \
 	"%.4d-%.2d-%.2d %.2d:%.2d:%.2d [ " lvl " ] %s:%d %s\n"
@@ -85,6 +90,11 @@ static struct {
 	enum logmsk mask[MAX_SINKS];
 } sinks;
 
+static struct {
+	char d[2][LOG_BUFSIZ];
+	ssize_t i[2];
+} bufs;
+
 static size_t nsinks;
 
 static struct {
@@ -92,24 +102,43 @@ static struct {
 	char info[PROGRESS_INFO_MAX_LEN];
 } progressbar;
 
-static void
-draw_progressbar(void)
-{
-	size_t barlen, i;
+static size_t draw_progressbar(char *dst, size_t len);
+static ssize_t log_write(int);
 
-	if (!progressbar.target || progressbar.current > progressbar.target || !isatty(1))
-		return;
+
+static size_t
+draw_progressbar(char *dst, size_t len)
+{
+	size_t segmentlen, barlen, i, z;
+	int r;
+
+	if (!progressbar.target || progressbar.current > progressbar.target)
+		return 0;
+	segmentlen = sizeof(PROGRESSBAR_SEGMENT) - 1;
+	if (len < PROGRESSBAR_LEN * segmentlen + PROGRESS_INFO_MAX_LEN + 64/* vt100 escape seq padding */)
+		return 0;
 	barlen = PROGRESSBAR_LEN * progressbar.current / progressbar.target;
-	dprintf(1, "   \x1b[32m");
-	for (i = 0; i < barlen; ++i)
-		dprintf(1, "─");
-	dprintf(1, "\x1b[30m");
-	for (; i < PROGRESSBAR_LEN; ++i)
-		dprintf(1, "─");
-	dprintf(1, "\x1b[32m  %zu/%zu \x1b[0;1m%s\x1b[0m\r",
+	memcpy(dst, "   \x1b[32m", 8);
+	z = 8;
+	for (i = 0; i < barlen; ++i) {
+		memcpy(&dst[z], PROGRESSBAR_SEGMENT, segmentlen);
+		z += segmentlen;
+	}
+	memcpy(&dst[z], "\x1b[30m", 5);
+	z += 5;
+	for (; i < PROGRESSBAR_LEN; ++i) {
+		memcpy(&dst[z], PROGRESSBAR_SEGMENT, segmentlen);
+		z += segmentlen;
+	}
+	r = snprintf(&dst[z], len - z,
+		"\x1b[32m  %zu/%zu \x1b[0;1m%s\x1b[0m\r",
 		progressbar.current,
 		progressbar.target,
 		progressbar.info);
+	if (r < 0)
+		return 0;
+	z += r;
+	return z;
 }
 
 int
@@ -127,36 +156,51 @@ log_add_fd_sink(int fd, enum logmsk mask)
 
 
 void
-log_print(enum loglvl lvl, const char *file, int line, const char *msg, ...)
+log_print(enum loglvl lvl, const char *file, int line, const char *fmt, ...)
 {
 	int i;
 	struct tm tm;
 	time_t now;
 	va_list ap;
-	char buf[MAX_LEN];
+	char msg_buf[MAX_LINE_LEN];
 
-	va_start(ap, msg);
-	vsnprintf(buf, MAX_LEN, msg, ap);
+	va_start(ap, fmt);
+	vsnprintf(msg_buf, MAX_LINE_LEN, fmt, ap);
 	va_end(ap);
 	if (nsinks < 1) {
-		dprintf(2, "no log sinks; dropped message: %s\n", buf);
+		dprintf(2, "no log sinks; dropped message: %s\n", msg_buf);
 		return;
 	}
 	now = time(NULL);
 	gmtime_r(&now, &tm);
+	/* for isatty == 0 */
+	bufs.i[0] = snprintf(&bufs.d[0][0], LOG_BUFSIZ, log_msg[lvl][0],
+		tm.tm_year + 1900,
+		tm.tm_mon + 1,
+		tm.tm_mday,
+		tm.tm_hour,
+		tm.tm_min,
+		tm.tm_sec,
+		file, line, msg_buf);
+	/* for isatty == 1 (VT100 formatting) */
+	bufs.i[1] = snprintf(&bufs.d[1][0], LOG_BUFSIZ, log_msg[lvl][1],
+		tm.tm_year + 1900,
+		tm.tm_mon + 1,
+		tm.tm_mday,
+		tm.tm_hour,
+		tm.tm_min,
+		tm.tm_sec,
+		file, line, msg_buf);
+	if (bufs.i[0] < 0 || bufs.i[1] < 0) {
+		dprintf(2, "log buffering failed; dropped message: %s\n", msg_buf);
+		return;
+	}
+	bufs.i[1] += draw_progressbar(&bufs.d[1][bufs.i[1]], LOG_BUFSIZ - bufs.i[1]);
 	for (i = 0; i < nsinks; ++i) {
 		if (!((sinks.mask[i] >> lvl) & 1))
 			continue;
-		dprintf(sinks.fd[i], log_msg[lvl][sinks.fmt[i]],
-			tm.tm_year + 1900,
-			tm.tm_mon + 1,
-			tm.tm_mday,
-			tm.tm_hour,
-			tm.tm_min,
-			tm.tm_sec,
-			file, line, buf);
+		log_write(i);
 	}
-	draw_progressbar();
 }
 
 void
@@ -168,8 +212,15 @@ log_perror(const char *file, int line, const char *msg)
 void
 log_update_progress(unsigned int current)
 {
+	int i;
+
 	progressbar.current = current;
-	draw_progressbar();
+	bufs.i[1] = draw_progressbar(&bufs.d[1][0], LOG_BUFSIZ);
+	for (i = 0; i < MAX_SINKS; ++i)
+		if (sinks.fmt[i]) {
+			log_write(i);
+			return;
+		}
 }
 
 void
@@ -185,5 +236,21 @@ log_set_progressbar(unsigned int target, const char *info)
 	for (; i < PROGRESS_INFO_MAX_LEN; ++i)
 		progressbar.info[i] = '\0';
 	progressbar.target = target;
-	draw_progressbar();
+	log_update_progress(0);
+}
+
+static ssize_t
+log_write(int idx)
+{
+	int fd, fmt;
+	ssize_t w, r;
+
+	fd = sinks.fd[idx];
+	fmt = sinks.fmt[idx];
+	w = r = 0;
+	while ((r = write(fd, &bufs.d[fmt][w], bufs.i[fmt] - w)) > 0)
+		w += r;
+	if (r < 0)
+		return r;
+	return w;
 }

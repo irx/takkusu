@@ -42,8 +42,8 @@
 
 #define MAX_LEN 2048
 
-static int
-__write_w32(int fd, const char* buf) {
+ssize_t
+__write_w32(int fd, const char *buf, size_t len) {
 	static WORD attr_olds[2] = {-1, -1}, attr_old;
 	int type;
 	HANDLE handle = INVALID_HANDLE_VALUE;
@@ -70,7 +70,7 @@ __write_w32(int fd, const char* buf) {
 	}
 	attr_old = attr;
 
-	while (*ptr) {
+	while (*ptr && len--) {
 		if (*ptr != '\033') {
 			putchar(*ptr);
 			ptr++;
@@ -385,7 +385,7 @@ dprintf(int fd, const char *fmt, ...)
 	va_end(ap);
 	buf[MAX_LEN-1] = '\0';
 	if (r > -1)
-		r = __write_w32(fd, buf);
+		r = __write_w32(fd, buf, MAX_LEN);
 
 	return r;
 }

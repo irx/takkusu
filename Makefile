@@ -1,5 +1,5 @@
 .POSIX:
-.PHONY: all clean install run
+.PHONY: all clean install run test
 .SUFFIXES: .c .h .o .rc .res .ff.bz2 .ff .ff.h
 
 VERSION = 0.1-rc
@@ -20,8 +20,8 @@ LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm
 
 EXTRA_OBJ =
 EXTRA_HDR =
-OBJ = log.o render.o ff.o main.o obj.o sched.o ${EXTRA_OBJ}
-HDR = log.h render.h ff.h obj.h ${EXTRA_HDR}
+OBJ = log.o render.o ff.o main.o obj.o sched.o audio.o dict.o ${EXTRA_OBJ}
+HDR = log.h render.h ff.h obj.h audio.h dict.h ${EXTRA_HDR}
 
 -include config.mk
 
@@ -64,6 +64,29 @@ vfs.o: assets_data.gen.h
 clean:
 	rm -f ${OBJ}
 	rm -f assets_data.gen.h ${HASSETS}
+	rm -f test/*.o *.test
 
 install: test
 	@echo not implemented yet
+
+
+
+## TESTS ##
+
+TESTS = \
+	dict.test \
+	entity.test
+
+test: ${TESTS}
+	for t in ${TESTS} ; do "./$$t" ; done
+
+dict.test: test/dict.o dict.o log.o
+	@echo LD $@
+	@${CC} -o $@ test/dict.o dict.o log.o ${LDFLAGS}
+
+entity.test: test/entity.o entity.o dict.o ff.o render.o log.o
+	@echo LD $@
+	@${CC} -o $@ test/entity.o entity.o dict.o ff.o render.o log.o ${LDFLAGS}
+
+test/dict.o: dict.h log.h
+test/dict.o: entity.h dict.h ff.h render.h log.h

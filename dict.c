@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2022 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2022-2024 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  *
  *
- * General purpose hash map
+ * A general purpose hash map
  * nothing fancy
  */
 
@@ -52,6 +52,9 @@ struct dict {
 static unsigned int hash(const char *, unsigned int);
 
 
+/**
+ * Create a hashmap with a table of size `siz'
+ */
 Dict *
 dict_create(size_t siz)
 {
@@ -87,6 +90,9 @@ dict_destroy(Dict *d)
 	free(d);
 }
 
+/**
+ * Get value for key `s'
+ */
 void *
 dict_lookup(Dict *d, const char *s)
 {
@@ -104,6 +110,9 @@ dict_lookup(Dict *d, const char *s)
 	return NULL;
 }
 
+/**
+ * Insert value `p' into a bucket of key `s'
+ */
 int
 dict_put(Dict *d, const char *s, void *p)
 {
@@ -113,17 +122,19 @@ dict_put(Dict *d, const char *s, void *p)
 	h = hash(s, d->siz);
 	LOG_TRACE("putting %s in index %lu", s, h);
 	b = d->tab[h];
+	/* cycle through linked list buckets */
 	while (b && b->h == h) {
 		if (!strcmp(b->s, s)) {
 			if (p && !b->p)
-				++d->n;
+				++d->n; /* prev value was null (counts as 0 size), new value is not null (counts as 1 size) */
 			else if (!p && b->p)
-				--d->n;
+				--d->n; /* reduce apparent size because stored value is null */
 			b->p = p;
 			return 1; /* exact entry already exists; replace it */
 		}
 		b = b->next;
 	}
+	/* create a new bucket */
 	b = calloc(sizeof(Bucket), 1);
 	if (!b)
 		goto putallocfail;
@@ -134,7 +145,7 @@ dict_put(Dict *d, const char *s, void *p)
 	}
 	b->p = p;
 	b->h = h;
-	if (p)
+	if (p) /* value has to be non-null in order to be of size 1 as opposed to 0 */
 		++d->n;
 	if (d->tab[h]) {
 		b->next = d->tab[h]->next;
@@ -142,6 +153,8 @@ dict_put(Dict *d, const char *s, void *p)
 			b->next->prev = b;
 		d->tab[h]->next = b;
 		b->prev = d->tab[h];
+		if (b->prev == d->last)
+			d->last = b;
 		return 1; /* at least one entry with same hash exists; append to the list */
 	}
 	d->tab[h] = b; /* no entry with the same hash so far */
@@ -161,6 +174,9 @@ putallocfail:
 	return 0;
 }
 
+/**
+ * Remove all buckets with null value
+ */
 size_t
 dict_prune(Dict *d)
 {
@@ -172,6 +188,8 @@ dict_prune(Dict *d)
 	while (iter) {
 		b = iter;
 		iter = b->next;
+		 /* if value of the bucket is null it shall be removed from the list
+		  * and deallocated */
 		if (!b->p) {
 			if (d->tab[b->h] == b)
 				d->tab[b->h] = (b->next && b->next->h == b->h) ? b->next : NULL;

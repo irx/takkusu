@@ -8,3 +8,4 @@ config.mk
 *.ff.h
 *.log
 compat/*.res
+*.test

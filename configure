@@ -1,5 +1,6 @@
 #!/bin/sh -eu
 # generate config.mk
+# 2021-2024 Max Mruszczak
 
 default_CFLAGS="-std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \\
 	\${INC} -DVERSION=\\\"\${VERSION}\\\" -DBUILD_INFO=\"\\\"\${BUILD_INFO}\\\"\" -DGLEW_STATIC"
@@ -70,8 +71,8 @@ done
 
 [ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
 [ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS" \
-	&& EXTRA_OBJ="${EXTRA_OBJ} vfs.o dict.o" \
-	&& EXTRA_HDR="${EXTRA_HDR} dict.h assets_data.gen.h" \
+	&& EXTRA_OBJ="${EXTRA_OBJ} vfs.o" \
+	&& EXTRA_HDR="${EXTRA_HDR} assets_data.gen.h" \
 	&& [ ! -x "$(command -v xxd)" ] && BIN2HDR="./bin2hdr"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
 [ "${win32_target}" = "y" ] && EXTRA_OBJ="${EXTRA_OBJ} compat/info.res compat/w32io.o"

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2022 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2024 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,16 +23,37 @@
  * SUCH DAMAGE.
  *
  *
- * General purpose hash map
+ * Manage entities
  */
 
-#define DICT_DEFAULT_TABLE_SIZE 1024
+enum component {
+	COMPONENT_DIM    = 1 << 0,
+	COMPONENT_POS    = 1 << 1,
+	COMPONENT_VEL    = 1 << 2,
+	COMPONENT_ACC    = 1 << 3,
+	COMPONENT_ZPOS   = 1 << 4,
+	COMPONENT_SPRITE = 1 << 5,
+	COMPONENT_ANIM   = 1 << 6,
+	COMPONENT_TEXT   = 1 << 7
+};
 
-typedef struct dict Dict;
+typedef struct entity_manager EntityManager;
+typedef struct game_state GameState;
+struct game_state {
+	GameState *prev;
+	Gc *gc;
+	EntityManager *entity_manager;
+};
 
-Dict * dict_create(size_t);
-void dict_destroy(Dict *);
-void * dict_lookup(Dict *, const char *);
-int dict_put(Dict *, const char *, void *);
-size_t dict_prune(Dict *);
-size_t dict_size(Dict *);
+typedef struct {
+	enum component components;
+	int x, y, z, w, h, sprite;
+	const char *txt;
+} EntityInfo;
+
+EntityManager * create_entity_manager(void);
+void destroy_entity_manager(EntityManager *);
+int entity_spawn(EntityManager *, EntityInfo);
+int entity_get_info(EntityManager *, int, EntityInfo *);
+void entity_delete(EntityManager *, int);
+void process_tick(GameState *);

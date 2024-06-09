@@ -42,6 +42,7 @@ void gc_clear(Gc *);
 void gc_commit(Gc *);
 int gc_alive(const Gc *);
 void gc_select(const Gc *);
+void gc_set_resolution(const Gc *, unsigned int, unsigned int);
 int gc_check_timer(double);
 void gc_bind_input(const Gc *);
 Input gc_poll_input(void);

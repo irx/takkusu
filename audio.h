@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2022 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2024 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,16 +23,15 @@
  * SUCH DAMAGE.
  *
  *
- * General purpose hash map
+ * Audio system
  */
 
-#define DICT_DEFAULT_TABLE_SIZE 1024
+typedef struct audio Audio;
 
-typedef struct dict Dict;
+Audio * audio_create(void);
+void audio_destroy(Audio *);
+void audio_load(Audio *, const char *, const char *);
+void audio_play(Audio *, const char *, float);
 
-Dict * dict_create(size_t);
-void dict_destroy(Dict *);
-void * dict_lookup(Dict *, const char *);
-int dict_put(Dict *, const char *, void *);
-size_t dict_prune(Dict *);
-size_t dict_size(Dict *);
+/* global audio system init */
+int audio_init(void);

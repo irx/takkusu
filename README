@@ -49,11 +49,12 @@ example:
 Cross-compile it using mxe[1]
 
  % git clone --recursive https://github.com/mxe/mxe.git
- % make -C mxe glfw glew opengl
+ % make -C mxe glfw3 glew
 in project dir:
  % ./configure HOSTCC=cc --win32 --embed-assets \
    --toolchain="${mxe_path}/usr/bin/i686-w64-mingw32.static-" \
-   --lib-dirs="-L${mxe_path}/usr/i686-w64-mingw32.static/lib"
+   --lib-dirs="-L${mxe_path}/usr/i686-w64-mingw32.static/lib" \
+   --include-dirs="-I${mxe_path}/usr/i686-w64-mingw32.static/include"
  % make -j 8
 
 

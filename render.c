@@ -114,6 +114,7 @@ gc_init(Gc *gc)
 		return -1;
 
 	LOG_INFO("opening %dx%d window", gc->w, gc->h);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	gc->window = glfwCreateWindow(gc->w, gc->h, "Hello World", NULL, NULL);
 
 	if (!gc->window) {
@@ -123,6 +124,7 @@ gc_init(Gc *gc)
 
 	glfwMakeContextCurrent(gc->window);
 	glfwSwapInterval(1);
+	glViewport(0, 0, gc->w, gc->h);
 
 	glewExperimental = GL_TRUE;
 	if (glewInit() != GLEW_OK) {
@@ -297,6 +299,13 @@ void
 gc_select(const Gc *gc)
 {
 	glfwMakeContextCurrent(gc->window);
+}
+
+void
+gc_set_resolution(const Gc *gc, unsigned int width, unsigned int height)
+{
+	glfwSetWindowSize(gc->window, width, height);
+	glViewport(0, 0, width, height);
 }
 
 int
