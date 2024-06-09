@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../dict.h"
+#include "../src/dict.h"
 
 static char *strs[] = {
 	"random thing",

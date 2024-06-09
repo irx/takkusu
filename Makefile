@@ -20,8 +20,24 @@ LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm
 
 EXTRA_OBJ =
 EXTRA_HDR =
-OBJ = log.o render.o ff.o main.o obj.o sched.o audio.o dict.o ${EXTRA_OBJ}
-HDR = log.h render.h ff.h obj.h audio.h dict.h ${EXTRA_HDR}
+OBJ = \
+	src/main.o \
+	src/render.o \
+	src/ff.o \
+	src/obj.o \
+	src/sched.o \
+	src/audio.o \
+	src/dict.o \
+	src/log.o \
+	${EXTRA_OBJ}
+HDR = \
+	src/render.h \
+	src/ff.h \
+	src/obj.h \
+	src/audio.h \
+	src/dict.h \
+	src/log.h \
+	${EXTRA_HDR}
 
 -include config.mk
 
@@ -48,14 +64,14 @@ takkusu: ${HDR} ${OBJ}
 .ff.ff.h:
 	${BIN2HDR} "$<" > $@
 
-bin2hdr: bin2hdr.c
+bin2hdr: src/bin2hdr.c
 	@echo HOSTCC $<
 	@${HOSTCC} -o $@ $<
 
-assets_data.gen.h: embed_assets.sh ${HASSETS}
+src/assets_data.gen.h: embed_assets.sh ${HASSETS}
 	./embed_assets.sh ${ASSETS}
 
-vfs.o: assets_data.gen.h
+src/vfs.o: src/assets_data.gen.h
 
 .rc.res:
 	@echo WINDRES $<
@@ -63,7 +79,7 @@ vfs.o: assets_data.gen.h
 
 clean:
 	rm -f ${OBJ}
-	rm -f assets_data.gen.h ${HASSETS}
+	rm -f src/assets_data.gen.h ${HASSETS}
 	rm -f test/*.o *.test
 
 install: test
@@ -80,13 +96,13 @@ TESTS = \
 test: ${TESTS}
 	for t in ${TESTS} ; do "./$$t" ; done
 
-dict.test: test/dict.o dict.o log.o
+dict.test: test/dict.o src/dict.o src/log.o
 	@echo LD $@
-	@${CC} -o $@ test/dict.o dict.o log.o ${LDFLAGS}
+	@${CC} -o $@ test/dict.o src/dict.o src/log.o ${LDFLAGS}
 
-entity.test: test/entity.o entity.o dict.o ff.o render.o log.o
+entity.test: test/entity.o src/entity.o src/dict.o src/ff.o src/render.o src/log.o
 	@echo LD $@
-	@${CC} -o $@ test/entity.o entity.o dict.o ff.o render.o log.o ${LDFLAGS}
+	@${CC} -o $@ test/entity.o src/entity.o src/dict.o src/ff.o src/render.o src/log.o ${LDFLAGS}
 
-test/dict.o: dict.h log.h
-test/dict.o: entity.h dict.h ff.h render.h log.h
+test/dict.o: src/dict.h src/log.h
+test/entity.o: src/entity.h src/dict.h src/ff.h src/render.h src/log.h

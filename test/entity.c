@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../log.h"
-#include "../dict.h"
-#include "../ff.h"
-#include "../render.h"
-#include "../entity.h"
+#include "../src/log.h"
+#include "../src/dict.h"
+#include "../src/ff.h"
+#include "../src/render.h"
+#include "../src/entity.h"
 
 int
 main(void)

@@ -71,8 +71,8 @@ done
 
 [ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
 [ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS" \
-	&& EXTRA_OBJ="${EXTRA_OBJ} vfs.o" \
-	&& EXTRA_HDR="${EXTRA_HDR} assets_data.gen.h" \
+	&& EXTRA_OBJ="${EXTRA_OBJ} src/vfs.o" \
+	&& EXTRA_HDR="${EXTRA_HDR} src/assets_data.gen.h" \
 	&& [ ! -x "$(command -v xxd)" ] && BIN2HDR="./bin2hdr"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
 [ "${win32_target}" = "y" ] && EXTRA_OBJ="${EXTRA_OBJ} compat/info.res compat/w32io.o"
