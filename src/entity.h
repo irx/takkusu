@@ -27,14 +27,15 @@
  */
 
 enum component {
-	COMPONENT_DIM    = 1 << 0,
-	COMPONENT_POS    = 1 << 1,
-	COMPONENT_VEL    = 1 << 2,
-	COMPONENT_ACC    = 1 << 3,
-	COMPONENT_ZPOS   = 1 << 4,
-	COMPONENT_SPRITE = 1 << 5,
-	COMPONENT_ANIM   = 1 << 6,
-	COMPONENT_TEXT   = 1 << 7
+	COMPONENT_DIM     = 1 << 0,
+	COMPONENT_POS     = 1 << 1,
+	COMPONENT_VEL     = 1 << 2,
+	COMPONENT_ACC     = 1 << 3,
+	COMPONENT_ZPOS    = 1 << 4,
+	COMPONENT_SPRITE  = 1 << 5,
+	COMPONENT_ANIM    = 1 << 6,
+	COMPONENT_TEXT    = 1 << 7,
+	COMPONENT_INPUT   = 1 << 8
 };
 
 typedef struct entity_manager EntityManager;
@@ -54,6 +55,9 @@ typedef struct {
 EntityManager * create_entity_manager(void);
 void destroy_entity_manager(EntityManager *);
 int entity_spawn(EntityManager *, EntityInfo);
+int entity_spawn_text(EntityManager *, int, int, int, const char *, int);
 int entity_get_info(EntityManager *, int, EntityInfo *);
 void entity_delete(EntityManager *, int);
 void process_tick(GameState *);
+
+int entity_detect_collision(EntityManager *, int, int, void (*fn)(int, int, void *), void *);

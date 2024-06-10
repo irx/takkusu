@@ -78,6 +78,11 @@ struct entity_manager {
 
 static size_t entity_get_subset(const EntityManager *, int *, size_t, uint32_t);
 static void entity_render(EntityManager *, Gc *, int *, size_t);
+static void entity_render_texts(EntityManager *, Gc *, int *, size_t);
+static void entity_accelerate(EntityManager *, Gc *, int *, size_t);
+static void entity_displace(EntityManager *, int *, size_t);
+static void entity_animate_vel(EntityManager *, int *, size_t);
+static void entity_animate_text(EntityManager *, int *, size_t);
 
 
 EntityManager *
@@ -135,6 +140,28 @@ entity_spawn(EntityManager *emgr, EntityInfo e)
 }
 
 int
+entity_spawn_text(EntityManager *emgr, int font, int x, int y, const char *str, int animate)
+{
+	int id;
+	EntityInfo info;
+
+	info.components = (COMPONENT_SPRITE | COMPONENT_POS | COMPONENT_TEXT);
+	info.x = x;
+	info.y = y;
+	info.sprite = font;
+	id = entity_spawn(emgr, info);
+	if (id < 0)
+		return id;
+
+	if (animate) {
+		emgr->entities.components[id] |= COMPONENT_ANIM;
+		emgr->components.text[id].len = 0;
+	}
+
+	return id;
+}
+
+int
 entity_get_info(EntityManager *emgr, int id, EntityInfo *e)
 {
 	if (id > MAX_ENTITIES || !emgr->entities.exists[id])
@@ -183,33 +210,216 @@ process_tick(GameState *state)
 	int ids[MAX_ENTITIES];
 	size_t cnt;
 
-	sign = (COMPONENT_SPRITE | COMPONENT_DIM | COMPONENT_POS);
+	/* move controllable objects (e.g. player) */
+	sign = (COMPONENT_ACC | COMPONENT_INPUT);
+	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
+	entity_accelerate(state->entity_manager, state->gc, ids, cnt);
+
+	/* move rigid bodies */
+	sign = (COMPONENT_ACC | COMPONENT_VEL | COMPONENT_POS | COMPONENT_DIM);
+	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
+	entity_displace(state->entity_manager, ids, cnt);
+
+	/* animate moving objects */
+	sign = (COMPONENT_VEL | COMPONENT_SPRITE | COMPONENT_ANIM);
+	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
+	entity_animate_vel(state->entity_manager, ids, cnt);
+
+	/* animate text */
+	sign = (COMPONENT_TEXT | COMPONENT_SPRITE | COMPONENT_ANIM);
+	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
+	entity_animate_text(state->entity_manager, ids, cnt);
+
+	/* render sprites */
+	sign = (COMPONENT_SPRITE | COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS);
 	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
 	entity_render(state->entity_manager, state->gc, ids, cnt);
+
+	/* print texts */
+	sign = (COMPONENT_SPRITE | COMPONENT_TEXT | COMPONENT_POS);
+	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
+	entity_render_texts(state->entity_manager, state->gc, ids, cnt);
 }
 
 static void
 entity_render(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
 {
-	/*
-	int i, nbg, nfg, bg[MAX_OBJ], fg[MAX_OBJ];
+	int i, nbg, nfg, bg[MAX_ENTITIES], fg[MAX_ENTITIES];
 
+	/* divide elements into foreground and background groups based on zpos */
+	/* TODO use zbuffer capabilities in renderer instead */
 	nbg = nfg = 0;
-	for (i = 0; i < objects.n; ++i)
-		if (objects.occup[i]) {
-			if (objects.zpos[i]) {
-				fg[nfg++] = i;
-			} else {
-				bg[nbg++] = i;
-			}
+	for (i = 0; i < cnt; ++i)
+		if (emgr->components.zpos[ids[i]]) {
+			fg[nfg++] = ids[i];
+		} else {
+			bg[nbg++] = ids[i];
 		}
+
 	while (nbg--)
-		gc_draw(gc, objects.sprite[bg[nbg]], objects.pos[bg[nbg]].x/100, objects.pos[bg[nbg]].y/100, objects.zpos[bg[nbg]], 0, 0);
+		gc_draw(gc,
+			emgr->components.sprite[bg[nbg]].id,
+			emgr->components.pos[bg[nbg]].x/100,
+			emgr->components.pos[bg[nbg]].y/100,
+			emgr->components.zpos[bg[nbg]],
+			emgr->components.sprite[bg[nbg]].offs_x,
+			emgr->components.sprite[bg[nbg]].offs_y);
 	while (nfg--)
-		gc_draw(gc, objects.sprite[fg[nfg]], objects.pos[fg[nfg]].x/100, objects.pos[fg[nfg]].y/100, objects.zpos[fg[nfg]], objects.anim[fg[nfg]][0], objects.anim[fg[nfg]][1]);
-	for (i = 0; i < texts.n; ++i) {
-		if (texts.occup[i])
-			gc_print(gc, texts.font[i], texts.pos[i].x, texts.pos[i].y, 5, texts.str[i], texts.anim[i]);
+		gc_draw(gc,
+			emgr->components.sprite[fg[nfg]].id,
+			emgr->components.pos[fg[nfg]].x/100,
+			emgr->components.pos[fg[nfg]].y/100,
+			emgr->components.zpos[fg[nfg]],
+			emgr->components.sprite[fg[nfg]].offs_x,
+			emgr->components.sprite[fg[nfg]].offs_y);
+}
+
+static void
+entity_render_texts(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
+{
+	int i, id;
+
+	for (i = 0; i < cnt; ++i) {
+		id = ids[i];
+		gc_print(gc,
+			emgr->components.sprite[id].id,
+			emgr->components.pos[id].x,
+			emgr->components.pos[id].y,
+			5, /* TODO zpos rework */
+			emgr->components.text[id].str,
+			emgr->components.text[id].len);
 	}
-	*/
+}
+
+static void
+entity_accelerate(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
+{
+	int i, id;
+	Input user_input;
+
+	user_input = gc_poll_input();
+	if (user_input.dx && user_input.dy) {
+		user_input.dx *= .7f;
+		user_input.dy *= .7f;
+	}
+	for (i = 0; i < cnt; ++i) {
+		id = ids[i];
+		emgr->components.acc[id].x = 5.f * user_input.dx - (int)(emgr->components.vel[id].x * .005f);
+		emgr->components.acc[id].y = 5.f * user_input.dy - (int)(emgr->components.vel[id].y * .005f);
+	}
+}
+
+static void
+entity_displace(EntityManager *emgr, int *ids, size_t cnt)
+{
+	int i, id;
+
+	for (i = 0; i < cnt; ++i) {
+		id = ids[i];
+		emgr->components.vel[id].x = (emgr->components.vel[id].x + emgr->components.acc[id].x) * .9f;
+		emgr->components.vel[id].y = (emgr->components.vel[id].y + emgr->components.acc[id].y) * .9f;
+		emgr->components.pos[id].x += emgr->components.vel[id].x;
+		emgr->components.pos[id].y += emgr->components.vel[id].y;
+	}
+}
+
+/* TODO get rid of magic numbers */
+static void
+entity_animate_vel(EntityManager *emgr, int *ids, size_t cnt)
+{
+	int i, id;
+	Vec2 vel;
+
+	for (i = 0; i < cnt; ++i) {
+		id = ids[i];
+		vel = emgr->components.vel[id];
+		if (vel.x == 0 && vel.y == 0) {
+			emgr->components.anim[id][0] = 0;
+			continue;
+		}
+		/* eval direction */
+		if (ABS(vel.x) > ABS(vel.y)) {
+			if (vel.x > 0)
+				emgr->components.anim[id][1] = 3;
+			else
+				emgr->components.anim[id][1] = 2;
+		} else {
+			if (vel.y > 0)
+				emgr->components.anim[id][1] = 0;
+			else
+				emgr->components.anim[id][1] = 1;
+		}
+		/* eval frame */
+		if (++emgr->components.anim[id][2] > ANIM_TICS_PER_FRAME) {
+			emgr->components.anim[id][2] = 0;
+			emgr->components.anim[id][0] = (emgr->components.anim[id][0] + 1) % 3;
+		}
+	}
+
+	/* apply offset to sprite */
+	for (i = 0; i < cnt; ++i) {
+		id = ids[i];
+		emgr->components.sprite[id].offs_x = emgr->components.anim[id][0];
+		emgr->components.sprite[id].offs_y = emgr->components.anim[id][1];
+	}
+}
+
+static void
+entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
+{
+	int i, id;
+	size_t slen;
+	Text *txt;
+
+	for (i = 0; i < cnt; ++i) {
+		id = ids[i];
+		txt = &emgr->components.text[id];
+
+		if (++emgr->components.anim[id][0] <= ANIM_TICS_PER_FRAME)
+			continue;
+
+		emgr->components.anim[id][0] = 0;
+		++txt->len;
+
+		slen = strlen(txt->str);
+		if (txt->len >= slen) { /* animation is finished */
+			txt->len = slen;
+			emgr->entities.components[id] ^= COMPONENT_ANIM;
+		}
+	}
+}
+
+/**
+ * A temporary function for backwards compat with previous entity system
+ * TODO replace with a general purpose collision system
+ */
+int
+entity_detect_collision(EntityManager *emgr, int first, int second, void (*fn)(int, int, void *), void *ctx)
+{
+	uint32_t sign;
+	Vec2 first_pos, first_dim, second_pos, second_dim;
+
+	/* check if entities are valid */
+	if (!emgr->entities.exists[first] || !emgr->entities.exists[second])
+		return -1;
+	sign = (COMPONENT_POS | COMPONENT_DIM);
+	if ((emgr->entities.components[first] & sign) != sign
+		|| (emgr->entities.components[second] & sign) != sign)
+		return -1;
+
+	first_pos = emgr->components.pos[first];
+	second_pos = emgr->components.pos[second];
+	first_dim = emgr->components.dim[first];
+	second_dim = emgr->components.dim[second];
+
+	if (first_pos.x < second_pos.x + second_dim.x &&
+		first_pos.x + first_dim.x > second_pos.x &&
+		first_pos.y < second_pos.y + second_dim.y &&
+		first_pos.y + first_dim.x > second_pos.y) {
+		if (fn)
+			fn(first, second, ctx);
+		return 1;
+	}
+
+	return 0;
 }
