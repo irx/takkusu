@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2021 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2021-2024 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,7 +33,7 @@
 #include "log.h"
 #include "ff.h"
 #include "render.h"
-#include "obj.h"
+#include "entity.h"
 
 #define MAX_SCHEDS 256
 #define MAX_COLLS 256
@@ -47,8 +47,8 @@ static struct {
 } schedtab;
 
 static struct {
-	int active[MAX_COLLS], entity[MAX_COLLS], recurring[MAX_COLLS];
-	enum class class[MAX_COLLS]; /* class of collison event trigger */
+	int active[MAX_COLLS], first_entity[MAX_COLLS], second_entity[MAX_COLLS], recurring[MAX_COLLS];
+	EntityManager *emgr[MAX_COLLS];
 	void *ctx[MAX_COLLS], (*fn[MAX_COLLS])(int, int, void *);
 	size_t n;
 } collisiontab;
@@ -91,7 +91,7 @@ schedule_poll(unsigned int tick)
 }
 
 int
-set_collsion(int e, enum class c, void (*fn)(int, int, void *), void *data)
+set_collsion(EntityManager *emgr, int first_entity, int second_entity, void (*fn)(int, int, void *), void *data)
 {
 	size_t i;
 
@@ -105,8 +105,9 @@ set_collsion(int e, enum class c, void (*fn)(int, int, void *), void *data)
 	}
 	if (i == collisiontab.n)
 		++collisiontab.n;
-	collisiontab.entity[i] = e;
-	collisiontab.class[i] = c;
+	collisiontab.first_entity[i] = first_entity;
+	collisiontab.second_entity[i] = second_entity;
+	collisiontab.emgr[i] = emgr;
 	collisiontab.fn[i] = fn;
 	collisiontab.ctx[i] = data;
 	collisiontab.active[i] = 1;
@@ -124,9 +125,9 @@ collision_poll(unsigned int tick)
 	for (i = 0; i < collisiontab.n; ++i) {
 		if (!collisiontab.active[i])
 			continue;
-		result = detect_collision(collisiontab.entity[i], collisiontab.class[i], collisiontab.fn[i], collisiontab.ctx[i]);
+		result = entity_detect_collision(collisiontab.emgr[i], collisiontab.first_entity[i], collisiontab.second_entity[i], collisiontab.fn[i], collisiontab.ctx[i]);
 		if (result < 0) {
-			LOG_WARNING("entity #%d does not exist; removing collision event #%zu", collisiontab.entity[i], i);
+			LOG_WARNING("entity #%d or #%d does not exist; removing collision event #%zu", collisiontab.first_entity[i], collisiontab.second_entity[i], i);
 			collisiontab.active[i] = 0;
 		}
 		if (result && !collisiontab.recurring[i])

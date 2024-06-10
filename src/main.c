@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2021 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2021-2024 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,7 +34,7 @@
 #include "log.h"
 #include "ff.h"
 #include "render.h"
-#include "obj.h"
+#include "entity.h"
 #include "sched.h"
 
 #ifdef EMBED_ASSETS
@@ -47,21 +47,23 @@ typedef struct vec2 {
 	int x, y;
 } Vec2;
 
-static void tick(void);
+static void tick(GameState *);
 static void test_event(unsigned long, void *);
 static void test_collision(int, int, void *);
 static void delete_on_collision(int, int, void *);
 
 static int main_font;
 static int test_event_ctx;
+static EntityManager *glob_emgr; /* tmp */
 
 int
 main(void)
 {
 	Gc *gc;
+	GameState state;
 	Image *img;
-	int x, y, player;
-	Entity e;
+	int x, y, player, npc;
+	EntityInfo e;
 	enum loglvl logging_level;
 
 	logging_level = LOGLVL_TRACE; /* TODO arg parse */
@@ -92,8 +94,15 @@ main(void)
 		return 1;
 	}
 	gc_init(gc);
+	state.gc = gc;
+	state.prev = NULL;
+	state.entity_manager = glob_emgr = create_entity_manager();
+	if (state.entity_manager == NULL) {
+		LOG_ERROR("failed at allocating entity manager");
+		return 1;
+	}
 
-	memset(&e, 0, sizeof(Entity));
+	memset(&e, 0, sizeof(EntityInfo));
 	img = ff_load("assets/tux.ff");
 	if (!img) {
 		LOG_ERROR("error loading sprite");
@@ -105,16 +114,15 @@ main(void)
 	free(img);
 	e.x = e.y = 30000;
 	e.z = 5;
-	e.class = PLAYER;
-	player = spawn_obj(e);
-	set_collsion(player, NPC, test_collision, NULL);
-	set_collsion(player, ITEM, delete_on_collision, NULL);
+	e.components = (COMPONENT_DIM | COMPONENT_POS | COMPONENT_VEL | COMPONENT_ACC | COMPONENT_ANIM | COMPONENT_ZPOS | COMPONENT_SPRITE | COMPONENT_INPUT);
+	player = entity_spawn(state.entity_manager, e);
 
 	/* spawn npc */
 	e.x = 60000;
 	e.y = 20000;
-	e.class = NPC;
-	spawn_obj(e);
+	e.components = (COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS | COMPONENT_SPRITE);
+	npc = entity_spawn(state.entity_manager, e);
+	set_collsion(state.entity_manager, player, npc, test_collision, NULL);
 
 	img = ff_load("assets/sword.ff");
 	test_event_ctx = gc_create_sprite(gc, img, 32, 32);
@@ -138,14 +146,13 @@ main(void)
 	}
 	e.sprite = gc_create_sprite(gc, img, 64, 64);
 	e.z = 0;
-	e.class = 0;
 	free(img->d);
 	free(img);
 	for (y = 0; y < 16; ++y) {
 		for (x = 0; x < 20; ++x) {
 			e.x = 6400 * x;
 			e.y = 6400 * y;
-			spawn_obj(e);
+			entity_spawn(state.entity_manager, e);
 		}
 	}
 
@@ -153,13 +160,14 @@ main(void)
 
 	schedule(8000, &test_event, &test_event_ctx);
 
+	gc_set_resolution(gc, 1280, 960);
+	//gc_set_resolution(gc, 960, 720);
 	while (gc_alive(gc)) {
 		while (gc_check_timer(INTERVAL))
-			tick();
+			tick(&state);
 		gc_clear(gc);
-		render_objs(gc);
-		gc_set_resolution(gc, 1280, 960);
-		//gc_set_resolution(gc, 960, 720);
+		process_rendering(&state);
+		//render_objs(gc);
 		//gc_draw(gc, main_font, 200, 200, 0, 1, 0);
 		gc_print(gc, main_font, 32, 400, 1, "> Hello world!\n\"The Legend of Tux\"\nZelda-like game test", 0);
 		//gc_print(gc, main_font, 32, 32, 1, "I need scissors 61!", 0);
@@ -174,7 +182,7 @@ main(void)
 }
 
 static void
-tick(void)
+tick(GameState *state)
 {
 	static unsigned long ntick = 0;
 	/*
@@ -194,7 +202,9 @@ tick(void)
 	tux.pos.x += tux.vel.x;
 	tux.pos.y += tux.vel.y;
 	*/
-	process_objs();
+	//gc_clear(state->gc);
+	process_tick(state);
+	//process_objs();
 	collision_poll(ntick);
 	schedule_poll(++ntick);
 }
@@ -202,7 +212,8 @@ tick(void)
 static void
 test_event(unsigned long now, void *ctx)
 {
-	Entity e;
+	EntityInfo e;
+	int player, item;
 	//static int lim = 10;
 
 	/*
@@ -218,25 +229,27 @@ test_event(unsigned long now, void *ctx)
 	*/
 	e.sprite = *(int *)ctx;
 	e.z = 5;
-	e.class = ITEM;
+	e.components = (COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS | COMPONENT_SPRITE);
 	e.x = 70000;
 	e.y = 20000;
 	e.w = e.h = 3800;
-	spawn_obj(e);
+	item = entity_spawn(glob_emgr, e);
 	LOG_INFO("spawned at %zu tick (%d x %d)", now, e.x, e.y);
 	//schedule(now + 1000, &test_event, ctx);
+	player = 0; /* tmp */
+	set_collsion(glob_emgr, player, item, delete_on_collision, NULL);
 }
 
 static void
 test_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("entity #%d collided with #%d", first, second);
-	LOG_INFO("spawned txt %d", spawn_text(400, 850, main_font, "It's dangerous to go alone.\nTake this!", 38));
+	LOG_INFO("spawned txt %d", entity_spawn_text(glob_emgr, main_font, 400, 850, "It's dangerous to go alone.\nTake this!", 38));
 }
 
 static void
 delete_on_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("removing entity #%d", second);
-	wipe_obj(second);
+	entity_delete(glob_emgr, second);
 }

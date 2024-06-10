@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2021 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2021-2024 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,5 +28,5 @@
 
 int schedule(unsigned long, void (*)(unsigned long, void *), void *);
 void schedule_poll(unsigned int);
-int set_collsion(int, enum class, void (*)(int, int, void *), void *);
+int set_collsion(EntityManager *, int, int, void (*fn)(int, int, void *), void *);
 void collision_poll(unsigned int);

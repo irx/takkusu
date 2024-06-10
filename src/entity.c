@@ -155,8 +155,12 @@ entity_spawn_text(EntityManager *emgr, int font, int x, int y, const char *str, 
 
 	if (animate) {
 		emgr->entities.components[id] |= COMPONENT_ANIM;
-		emgr->components.text[id].len = 0;
+		emgr->components.text[id].len = 1;
+		emgr->components.anim[id][0] = 0;
+	} else {
+		emgr->components.text[id].len = strlen(str);
 	}
+	emgr->components.text[id].str = str;
 
 	return id;
 }
@@ -196,7 +200,7 @@ entity_get_subset(const EntityManager *emgr, int *buf, size_t len, uint32_t sign
 	for (i = 0; i < emgr->entities.n; ++i) {
 		if (n+1 > len)
 			LOG_FATAL("entity id buffer exceeded");
-		if ((emgr->entities.components[i] & sign) == sign)
+		if (emgr->entities.exists[i] && (emgr->entities.components[i] & sign) == sign)
 			buf[n++] = i;
 	}
 
@@ -229,6 +233,14 @@ process_tick(GameState *state)
 	sign = (COMPONENT_TEXT | COMPONENT_SPRITE | COMPONENT_ANIM);
 	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
 	entity_animate_text(state->entity_manager, ids, cnt);
+}
+
+void
+process_rendering(GameState *state)
+{
+	uint32_t sign;
+	int ids[MAX_ENTITIES];
+	size_t cnt;
 
 	/* render sprites */
 	sign = (COMPONENT_SPRITE | COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS);
@@ -352,7 +364,7 @@ entity_animate_vel(EntityManager *emgr, int *ids, size_t cnt)
 		/* eval frame */
 		if (++emgr->components.anim[id][2] > ANIM_TICS_PER_FRAME) {
 			emgr->components.anim[id][2] = 0;
-			emgr->components.anim[id][0] = (emgr->components.anim[id][0] + 1) % 3;
+			emgr->components.anim[id][0] = (emgr->components.anim[id][0] + 1) % 4;
 		}
 	}
 
@@ -375,7 +387,7 @@ entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
 		id = ids[i];
 		txt = &emgr->components.text[id];
 
-		if (++emgr->components.anim[id][0] <= ANIM_TICS_PER_FRAME)
+		if (++emgr->components.anim[id][0] <= ANIM_TICS_PER_FRAME / 2)
 			continue;
 
 		emgr->components.anim[id][0] = 0;
@@ -385,6 +397,7 @@ entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
 		if (txt->len >= slen) { /* animation is finished */
 			txt->len = slen;
 			emgr->entities.components[id] ^= COMPONENT_ANIM;
+			LOG_TRACE("finished animating text #%d", id);
 		}
 	}
 }

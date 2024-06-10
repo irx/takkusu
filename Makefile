@@ -24,7 +24,7 @@ OBJ = \
 	src/main.o \
 	src/render.o \
 	src/ff.o \
-	src/obj.o \
+	src/entity.o \
 	src/sched.o \
 	src/audio.o \
 	src/dict.o \
@@ -33,7 +33,7 @@ OBJ = \
 HDR = \
 	src/render.h \
 	src/ff.h \
-	src/obj.h \
+	src/entity.h \
 	src/audio.h \
 	src/dict.h \
 	src/log.h \

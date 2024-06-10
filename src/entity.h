@@ -59,5 +59,6 @@ int entity_spawn_text(EntityManager *, int, int, int, const char *, int);
 int entity_get_info(EntityManager *, int, EntityInfo *);
 void entity_delete(EntityManager *, int);
 void process_tick(GameState *);
+void process_rendering(GameState *);
 
 int entity_detect_collision(EntityManager *, int, int, void (*fn)(int, int, void *), void *);
