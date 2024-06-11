@@ -39,9 +39,25 @@
 //#include "sched.h"
 
 #define ABS(x) ((x < 0) ? -x : x)
-#define MAX_OBJ 1024
 #define MAX_ENTITIES 1024
-#define ANIM_TICS_PER_FRAME 150
+
+#define ANIM_TICKS_PER_FRAME 150
+#define ANIM_TEXT_TICKS_PER_FRAME ANIM_TICKS_PER_FRAME/2
+#define ANIM_MAX_FRAMES 4
+
+enum anim_fields {
+	ANIM_FRAME = 0,
+	ANIM_DIR,
+	ANIM_TICKS,
+	ANIM_NFIELDS
+};
+
+enum anim_direction {
+	ANIM_DIR_DOWN = 0,
+	ANIM_DIR_UP,
+	ANIM_DIR_LEFT,
+	ANIM_DIR_RIGHT
+};
 
 typedef struct vec2 {
 	int x, y;
@@ -68,7 +84,7 @@ typedef struct components {
 	int zpos[MAX_ENTITIES];
 	Sprite sprite[MAX_ENTITIES];
 	Text text[MAX_ENTITIES];
-	size_t anim[MAX_ENTITIES][3];
+	size_t anim[MAX_ENTITIES][ANIM_NFIELDS];
 } Components;
 
 struct entity_manager {
@@ -92,10 +108,10 @@ create_entity_manager(void)
 	size_t z;
 
 	z = sizeof(EntityManager);
-	emgr = malloc(z);
+	emgr = calloc(z, 1);
 	if (!emgr)
-		LOG_FATAL("failed allocating new entity manager");
-	memset(emgr, 0, z);
+		LOG_FATAL("failed allocating a new entity manager");
+	LOG_TRACE("allocated %zuB for an entity manager", z);
 
 	return emgr;
 }
@@ -335,7 +351,6 @@ entity_displace(EntityManager *emgr, int *ids, size_t cnt)
 	}
 }
 
-/* TODO get rid of magic numbers */
 static void
 entity_animate_vel(EntityManager *emgr, int *ids, size_t cnt)
 {
@@ -346,33 +361,33 @@ entity_animate_vel(EntityManager *emgr, int *ids, size_t cnt)
 		id = ids[i];
 		vel = emgr->components.vel[id];
 		if (vel.x == 0 && vel.y == 0) {
-			emgr->components.anim[id][0] = 0;
+			emgr->components.anim[id][ANIM_FRAME] = 0;
 			continue;
 		}
 		/* eval direction */
 		if (ABS(vel.x) > ABS(vel.y)) {
 			if (vel.x > 0)
-				emgr->components.anim[id][1] = 3;
+				emgr->components.anim[id][ANIM_DIR] = ANIM_DIR_RIGHT;
 			else
-				emgr->components.anim[id][1] = 2;
+				emgr->components.anim[id][ANIM_DIR] = ANIM_DIR_LEFT;
 		} else {
 			if (vel.y > 0)
-				emgr->components.anim[id][1] = 0;
+				emgr->components.anim[id][ANIM_DIR] = ANIM_DIR_DOWN;
 			else
-				emgr->components.anim[id][1] = 1;
+				emgr->components.anim[id][ANIM_DIR] = ANIM_DIR_UP;
 		}
 		/* eval frame */
-		if (++emgr->components.anim[id][2] > ANIM_TICS_PER_FRAME) {
-			emgr->components.anim[id][2] = 0;
-			emgr->components.anim[id][0] = (emgr->components.anim[id][0] + 1) % 4;
+		if (++emgr->components.anim[id][ANIM_TICKS] > ANIM_TICKS_PER_FRAME) {
+			emgr->components.anim[id][ANIM_TICKS] = 0;
+			emgr->components.anim[id][ANIM_FRAME] = (emgr->components.anim[id][ANIM_FRAME] + 1) % ANIM_MAX_FRAMES;
 		}
 	}
 
-	/* apply offset to sprite */
+	/* apply offset to the sprite */
 	for (i = 0; i < cnt; ++i) {
 		id = ids[i];
-		emgr->components.sprite[id].offs_x = emgr->components.anim[id][0];
-		emgr->components.sprite[id].offs_y = emgr->components.anim[id][1];
+		emgr->components.sprite[id].offs_x = emgr->components.anim[id][ANIM_FRAME];
+		emgr->components.sprite[id].offs_y = emgr->components.anim[id][ANIM_DIR];
 	}
 }
 
@@ -387,7 +402,7 @@ entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
 		id = ids[i];
 		txt = &emgr->components.text[id];
 
-		if (++emgr->components.anim[id][0] <= ANIM_TICS_PER_FRAME / 2)
+		if (++emgr->components.anim[id][0] <= ANIM_TEXT_TICKS_PER_FRAME)
 			continue;
 
 		emgr->components.anim[id][0] = 0;

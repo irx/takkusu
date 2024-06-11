@@ -23,7 +23,7 @@
  * SUCH DAMAGE.
  *
  *
- * Test rendering images
+ * Test entity and rendering system
  */
 
 #include <stdio.h>
@@ -36,6 +36,8 @@
 #include "render.h"
 #include "entity.h"
 #include "sched.h"
+#include "dict.h"
+#include "audio.h"
 
 #ifdef EMBED_ASSETS
 void vfs_init(void);
@@ -47,21 +49,22 @@ typedef struct vec2 {
 	int x, y;
 } Vec2;
 
-static void tick(GameState *);
+static void tick(void);
 static void test_event(unsigned long, void *);
 static void test_collision(int, int, void *);
 static void delete_on_collision(int, int, void *);
 
 static int main_font;
+static GameState *game_state;
 static int test_event_ctx;
-static EntityManager *glob_emgr; /* tmp */
+static Dict *entity_dict;
 
 int
 main(void)
 {
 	Gc *gc;
-	GameState state;
 	Image *img;
+	GameState state;
 	int x, y, player, npc;
 	EntityInfo e;
 	enum loglvl logging_level;
@@ -94,11 +97,18 @@ main(void)
 		return 1;
 	}
 	gc_init(gc);
+	game_state = &state;
 	state.gc = gc;
 	state.prev = NULL;
-	state.entity_manager = glob_emgr = create_entity_manager();
+	state.entity_manager = create_entity_manager();
 	if (state.entity_manager == NULL) {
 		LOG_ERROR("failed at allocating entity manager");
+		return 1;
+	}
+	/* create a dictionary for notable entities */
+	entity_dict = dict_create(DICT_DEFAULT_TABLE_SIZE);
+	if (!entity_dict) {
+		LOG_ERROR("failed to create a dictionary for entities");
 		return 1;
 	}
 
@@ -116,6 +126,7 @@ main(void)
 	e.z = 5;
 	e.components = (COMPONENT_DIM | COMPONENT_POS | COMPONENT_VEL | COMPONENT_ACC | COMPONENT_ANIM | COMPONENT_ZPOS | COMPONENT_SPRITE | COMPONENT_INPUT);
 	player = entity_spawn(state.entity_manager, e);
+	dict_put(entity_dict, "player", &player);
 
 	/* spawn npc */
 	e.x = 60000;
@@ -160,21 +171,14 @@ main(void)
 
 	schedule(8000, &test_event, &test_event_ctx);
 
-	gc_set_resolution(gc, 1280, 960);
+	//gc_set_resolution(gc, 1280, 960);
 	//gc_set_resolution(gc, 960, 720);
 	while (gc_alive(gc)) {
 		while (gc_check_timer(INTERVAL))
-			tick(&state);
+			tick();
 		gc_clear(gc);
 		process_rendering(&state);
-		//render_objs(gc);
-		//gc_draw(gc, main_font, 200, 200, 0, 1, 0);
 		gc_print(gc, main_font, 32, 400, 1, "> Hello world!\n\"The Legend of Tux\"\nZelda-like game test", 0);
-		//gc_print(gc, main_font, 32, 32, 1, "I need scissors 61!", 0);
-		/*
-		gc_print(gc, main_font, 320, 500, 1, "[Yes]  No ", 0);
-		gc_print(gc, main_font, 320, 588, 1, "int\nmain(void)\n{\n}", 0);
-		*/
 		gc_commit(gc);
 	}
 
@@ -182,29 +186,10 @@ main(void)
 }
 
 static void
-tick(GameState *state)
+tick()
 {
 	static unsigned long ntick = 0;
-	/*
-	Input user_input;
-
-	user_input = gc_poll_input();
-	if (user_input.dx && user_input.dy) {
-		user_input.dx *= .7f;
-		user_input.dy *= .7f;
-	}
-	tux.acc.x = 5.f * user_input.dx - (int)(tux.vel.x * .005f);
-	tux.acc.y = 5.f * user_input.dy - (int)(tux.vel.y * .005f);
-	tux.vel.x = (tux.vel.x + tux.acc.x) * .9f;
-	tux.vel.y = (tux.vel.y + tux.acc.y) * .9f;
-	tux.vel.x = 10.f * user_input.dx;
-	tux.vel.y = 10.f * user_input.dy;
-	tux.pos.x += tux.vel.x;
-	tux.pos.y += tux.vel.y;
-	*/
-	//gc_clear(state->gc);
-	process_tick(state);
-	//process_objs();
+	process_tick(game_state);
 	collision_poll(ntick);
 	schedule_poll(++ntick);
 }
@@ -213,43 +198,34 @@ static void
 test_event(unsigned long now, void *ctx)
 {
 	EntityInfo e;
-	int player, item;
-	//static int lim = 10;
+	int *player, item;
 
-	/*
-	if (!--lim)
-		return;
-	e.sprite = *(int *)ctx;
-	e.z = 5;
-	e.class = NPC;
-	e.x = 30000 + rand() % 100000;
-	e.y = 30000 + rand() % 100000;
-	e.w = e.h = 3800;
-	spawn_obj(e);
-	*/
 	e.sprite = *(int *)ctx;
 	e.z = 5;
 	e.components = (COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS | COMPONENT_SPRITE);
 	e.x = 70000;
 	e.y = 20000;
 	e.w = e.h = 3800;
-	item = entity_spawn(glob_emgr, e);
+	item = entity_spawn(game_state->entity_manager, e);
 	LOG_INFO("spawned at %zu tick (%d x %d)", now, e.x, e.y);
-	//schedule(now + 1000, &test_event, ctx);
-	player = 0; /* tmp */
-	set_collsion(glob_emgr, player, item, delete_on_collision, NULL);
+	player = dict_lookup(entity_dict, "player");
+	if (!player) {
+		LOG_WARNING("player entity not found");
+		return;
+	}
+	set_collsion(game_state->entity_manager, *player, item, delete_on_collision, NULL);
 }
 
 static void
 test_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("entity #%d collided with #%d", first, second);
-	LOG_INFO("spawned txt %d", entity_spawn_text(glob_emgr, main_font, 400, 850, "It's dangerous to go alone.\nTake this!", 38));
+	LOG_INFO("spawned txt %d", entity_spawn_text(game_state->entity_manager, main_font, 400, 850, "It's dangerous to go alone.\nTake this!", 38));
 }
 
 static void
 delete_on_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("removing entity #%d", second);
-	entity_delete(glob_emgr, second);
+	entity_delete(game_state->entity_manager, second);
 }
