@@ -220,7 +220,7 @@ static void
 test_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("entity #%d collided with #%d", first, second);
-	LOG_INFO("spawned txt %d", entity_spawn_text(game_state->entity_manager, main_font, 400, 850, "It's dangerous to go alone.\nTake this!", 38));
+	LOG_INFO("spawned txt %d", entity_spawn_text(game_state->entity_manager, main_font, 40000, 85000, "It's dangerous to go alone.\nTake this!", 38));
 }
 
 static void

@@ -66,6 +66,7 @@ typedef struct vec2 {
 typedef struct text {
 	const char *str;
 	size_t len;
+	int font;
 } Text;
 
 typedef struct sprite {
@@ -148,9 +149,9 @@ entity_spawn(EntityManager *emgr, EntityInfo e)
 	emgr->components.dim[i].x = e.w;
 	emgr->components.dim[i].y = e.h;
 	emgr->components.zpos[i] = e.z;
-	emgr->components.anim[i][0] = 0;
-	emgr->components.anim[i][1] = 0;
-	emgr->components.anim[i][2] = 0;
+	emgr->components.anim[i][ANIM_FRAME] =
+	emgr->components.anim[i][ANIM_DIR] =
+	emgr->components.anim[i][ANIM_TICKS] = 0;
 
 	return i;
 }
@@ -161,10 +162,9 @@ entity_spawn_text(EntityManager *emgr, int font, int x, int y, const char *str, 
 	int id;
 	EntityInfo info;
 
-	info.components = (COMPONENT_SPRITE | COMPONENT_POS | COMPONENT_TEXT);
+	info.components = (COMPONENT_POS | COMPONENT_TEXT);
 	info.x = x;
 	info.y = y;
-	info.sprite = font;
 	id = entity_spawn(emgr, info);
 	if (id < 0)
 		return id;
@@ -177,6 +177,7 @@ entity_spawn_text(EntityManager *emgr, int font, int x, int y, const char *str, 
 		emgr->components.text[id].len = strlen(str);
 	}
 	emgr->components.text[id].str = str;
+	emgr->components.text[id].font = font;
 
 	return id;
 }
@@ -184,8 +185,10 @@ entity_spawn_text(EntityManager *emgr, int font, int x, int y, const char *str, 
 int
 entity_get_info(EntityManager *emgr, int id, EntityInfo *e)
 {
-	if (id > MAX_ENTITIES || !emgr->entities.exists[id])
+	if (id >= MAX_ENTITIES || !emgr->entities.exists[id]) {
+		LOG_ERROR("cannot get info for non-existent entity #%d", id);
 		return 0;
+	}
 	e->sprite = emgr->components.sprite[id].id;
 	e->x = emgr->components.pos[id].x;
 	e->y = emgr->components.pos[id].y;
@@ -199,7 +202,14 @@ entity_get_info(EntityManager *emgr, int id, EntityInfo *e)
 void
 entity_delete(EntityManager *emgr, int id)
 {
+	if (id >= MAX_ENTITIES || !emgr->entities.exists[id]) {
+		LOG_WARNING("cannot delete non-existent entity #%d", id);
+		return;
+	}
 	emgr->entities.exists[id] = 0;
+	if (emgr->entities.n == id + 1)
+		--emgr->entities.n;
+	LOG_TRACE("removed entity #%d", id);
 }
 
 /**
@@ -246,7 +256,7 @@ process_tick(GameState *state)
 	entity_animate_vel(state->entity_manager, ids, cnt);
 
 	/* animate text */
-	sign = (COMPONENT_TEXT | COMPONENT_SPRITE | COMPONENT_ANIM);
+	sign = (COMPONENT_TEXT | COMPONENT_ANIM);
 	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
 	entity_animate_text(state->entity_manager, ids, cnt);
 }
@@ -264,7 +274,7 @@ process_rendering(GameState *state)
 	entity_render(state->entity_manager, state->gc, ids, cnt);
 
 	/* print texts */
-	sign = (COMPONENT_SPRITE | COMPONENT_TEXT | COMPONENT_POS);
+	sign = (COMPONENT_TEXT | COMPONENT_POS);
 	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
 	entity_render_texts(state->entity_manager, state->gc, ids, cnt);
 }
@@ -310,9 +320,9 @@ entity_render_texts(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
 	for (i = 0; i < cnt; ++i) {
 		id = ids[i];
 		gc_print(gc,
-			emgr->components.sprite[id].id,
-			emgr->components.pos[id].x,
-			emgr->components.pos[id].y,
+			emgr->components.text[id].font,
+			emgr->components.pos[id].x / 100,
+			emgr->components.pos[id].y / 100,
 			5, /* TODO zpos rework */
 			emgr->components.text[id].str,
 			emgr->components.text[id].len);
