@@ -94,12 +94,60 @@ struct entity_manager {
 };
 
 static size_t entity_get_subset(const EntityManager *, int *, size_t, uint32_t);
+/* Entity `Systems' functions declarations */
 static void entity_render(EntityManager *, Gc *, int *, size_t);
 static void entity_render_texts(EntityManager *, Gc *, int *, size_t);
-static void entity_accelerate(EntityManager *, Gc *, int *, size_t);
+static void entity_accelerate(EntityManager *, int *, size_t);
 static void entity_displace(EntityManager *, int *, size_t);
 static void entity_animate_vel(EntityManager *, int *, size_t);
 static void entity_animate_text(EntityManager *, int *, size_t);
+
+#define NSYSTEMS 4
+#define NRENDERSYSTEMS 2
+
+/* Entity `Systems' vtable */
+static const struct {
+	uint32_t mask; /* system signature; a mask for filtering entity list before
+	                  passing it over to the `system' function */
+	void (*fn)(EntityManager *, int *, size_t); /* `system' function ptr */
+} systems_vtable[NSYSTEMS] = {
+	{
+		/* move controllable objects (e.g. player) */
+		.mask = (COMPONENT_ACC | COMPONENT_INPUT),
+		.fn = entity_accelerate
+	},
+	{
+		/* move rigid bodies */
+		.mask = (COMPONENT_ACC | COMPONENT_VEL | COMPONENT_POS | COMPONENT_DIM),
+		.fn = entity_displace
+	},
+	{
+		/* animate moving objects */
+		.mask = (COMPONENT_VEL | COMPONENT_SPRITE | COMPONENT_ANIM),
+		.fn = entity_animate_vel
+	},
+	{
+		/* animate text */
+		.mask = (COMPONENT_TEXT | COMPONENT_ANIM),
+		.fn = entity_animate_text
+	}
+};
+
+static const struct {
+	uint32_t mask;
+	void (*fn)(EntityManager *, Gc *, int *, size_t);
+} render_systems_vtable[NRENDERSYSTEMS] = {
+	{
+		/* render sprites */
+		.mask = (COMPONENT_SPRITE | COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS),
+		.fn = entity_render
+	},
+	{
+		/* print texts */
+		.mask = (COMPONENT_TEXT | COMPONENT_POS),
+		.fn = entity_render_texts
+	}
+};
 
 
 EntityManager *
@@ -218,7 +266,7 @@ entity_delete(EntityManager *emgr, int id)
  * entities is returned
  */
 static size_t
-entity_get_subset(const EntityManager *emgr, int *buf, size_t len, uint32_t sign)
+entity_get_subset(const EntityManager *emgr, int *buf, size_t len, uint32_t mask)
 {
 	size_t i, n;
 
@@ -226,7 +274,7 @@ entity_get_subset(const EntityManager *emgr, int *buf, size_t len, uint32_t sign
 	for (i = 0; i < emgr->entities.n; ++i) {
 		if (n+1 > len)
 			LOG_FATAL("entity id buffer exceeded");
-		if (emgr->entities.exists[i] && (emgr->entities.components[i] & sign) == sign)
+		if (emgr->entities.exists[i] && (emgr->entities.components[i] & mask) == mask)
 			buf[n++] = i;
 	}
 
@@ -236,47 +284,25 @@ entity_get_subset(const EntityManager *emgr, int *buf, size_t len, uint32_t sign
 void
 process_tick(GameState *state)
 {
-	uint32_t sign;
-	int ids[MAX_ENTITIES];
+	int i, ids[MAX_ENTITIES];
 	size_t cnt;
 
-	/* move controllable objects (e.g. player) */
-	sign = (COMPONENT_ACC | COMPONENT_INPUT);
-	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
-	entity_accelerate(state->entity_manager, state->gc, ids, cnt);
-
-	/* move rigid bodies */
-	sign = (COMPONENT_ACC | COMPONENT_VEL | COMPONENT_POS | COMPONENT_DIM);
-	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
-	entity_displace(state->entity_manager, ids, cnt);
-
-	/* animate moving objects */
-	sign = (COMPONENT_VEL | COMPONENT_SPRITE | COMPONENT_ANIM);
-	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
-	entity_animate_vel(state->entity_manager, ids, cnt);
-
-	/* animate text */
-	sign = (COMPONENT_TEXT | COMPONENT_ANIM);
-	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
-	entity_animate_text(state->entity_manager, ids, cnt);
+	for (i = 0; i < NSYSTEMS; ++i) {
+		cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, systems_vtable[i].mask);
+		systems_vtable[i].fn(state->entity_manager, ids, cnt);
+	}
 }
 
 void
 process_rendering(GameState *state)
 {
-	uint32_t sign;
-	int ids[MAX_ENTITIES];
+	int i, ids[MAX_ENTITIES];
 	size_t cnt;
 
-	/* render sprites */
-	sign = (COMPONENT_SPRITE | COMPONENT_DIM | COMPONENT_POS | COMPONENT_ZPOS);
-	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
-	entity_render(state->entity_manager, state->gc, ids, cnt);
-
-	/* print texts */
-	sign = (COMPONENT_TEXT | COMPONENT_POS);
-	cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, sign);
-	entity_render_texts(state->entity_manager, state->gc, ids, cnt);
+	for (i = 0; i < NRENDERSYSTEMS; ++i) {
+		cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, render_systems_vtable[i].mask);
+		render_systems_vtable[i].fn(state->entity_manager, state->gc, ids, cnt);
+	}
 }
 
 static void
@@ -330,7 +356,7 @@ entity_render_texts(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
 }
 
 static void
-entity_accelerate(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
+entity_accelerate(EntityManager *emgr, int *ids, size_t cnt)
 {
 	int i, id;
 	Input user_input;
@@ -434,15 +460,15 @@ entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
 int
 entity_detect_collision(EntityManager *emgr, int first, int second, void (*fn)(int, int, void *), void *ctx)
 {
-	uint32_t sign;
+	uint32_t mask;
 	Vec2 first_pos, first_dim, second_pos, second_dim;
 
 	/* check if entities are valid */
 	if (!emgr->entities.exists[first] || !emgr->entities.exists[second])
 		return -1;
-	sign = (COMPONENT_POS | COMPONENT_DIM);
-	if ((emgr->entities.components[first] & sign) != sign
-		|| (emgr->entities.components[second] & sign) != sign)
+	mask = (COMPONENT_POS | COMPONENT_DIM);
+	if ((emgr->entities.components[first] & mask) != mask
+		|| (emgr->entities.components[second] & mask) != mask)
 		return -1;
 
 	first_pos = emgr->components.pos[first];
