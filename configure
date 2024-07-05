@@ -91,7 +91,7 @@ printf '# generated on %s\n\n' "$(date)" > config.mk
 	[ -n "${PREFIX}" ] && echo "PREFIX = ${PREFIX}"
 	[ -n "${EXTRA_OBJ}" ] && echo "EXTRA_OBJ = ${EXTRA_OBJ}"
 	[ -n "${EXTRA_HDR}" ] && echo "EXTRA_HDR = ${EXTRA_HDR}"
-	[ "${win32_target}" = "y" ] && echo "LDFLAGS = \${LIB} -lglew32s -lGLEW -lglfw3 -lm -lopengl32 -lws2_32 -lgdi32" \
+	[ "${win32_target}" = "y" ] && echo "LDFLAGS = \${LIB} -lglew32s -lGLEW -lglfw3 -lm -lopengl32 -lws2_32 -lgdi32 -lportaudio -lole32 -lwinmm -lsetupapi" \
 		&& printf '\ntakkusu.exe: takkusu\n\tmv $< $@\n'
 	[ "${debug_mode}" = "y" ] && printf '\nrun: all\n\t./takkusu\n'
 } >> config.mk

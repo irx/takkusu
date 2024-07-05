@@ -4,3 +4,4 @@ typedef struct {
 } Image;
 
 Image * ff_load(const char *);
+size_t snd_load(int16_t **, const char *);

@@ -13,7 +13,7 @@ limited set of dependencies with portability in mind.
 deps:
  - GLFW3
  - GLEW
- - PortAudio (tbd)
+ - PortAudio
 
 
  =========
@@ -49,7 +49,7 @@ example:
 Cross-compile it using mxe[1]
 
  % git clone --recursive https://github.com/mxe/mxe.git
- % make -C mxe glfw3 glew
+ % make -C mxe glfw3 glew portaudio
 in project dir:
  % ./configure HOSTCC=cc --win32 --embed-assets \
    --toolchain="${mxe_path}/usr/bin/i686-w64-mingw32.static-" \

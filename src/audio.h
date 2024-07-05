@@ -35,3 +35,5 @@ void audio_play(Audio *, const char *, float);
 
 /* global audio system init */
 int audio_init(void);
+int audio_exit(void);
+void audio_flush(void);

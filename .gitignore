@@ -6,6 +6,8 @@ config.mk
 *.swp
 *.ff
 *.ff.h
+*.snd
+*.snd.h
 *.log
 compat/*.res
 *.test

@@ -56,6 +56,7 @@ static void delete_on_collision(int, int, void *);
 
 static int main_font;
 static GameState *game_state;
+static Audio *audio;
 static int test_event_ctx;
 static Dict *entity_dict;
 
@@ -97,6 +98,9 @@ main(void)
 		return 1;
 	}
 	gc_init(gc);
+	audio_init();
+	audio = audio_create();
+	audio_load(audio, "blip", "assets/blip.snd");
 	game_state = &state;
 	state.gc = gc;
 	state.prev = NULL;
@@ -180,8 +184,10 @@ main(void)
 		process_rendering(&state);
 		gc_print(gc, main_font, 32, 400, 1, "> Hello world!\n\"The Legend of Tux\"\nZelda-like game test", 0);
 		gc_commit(gc);
+		audio_flush();
 	}
 
+	audio_exit();
 	return 0;
 }
 
@@ -221,6 +227,7 @@ test_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("entity #%d collided with #%d", first, second);
 	LOG_INFO("spawned txt %d", entity_spawn_text(game_state->entity_manager, main_font, 40000, 85000, "It's dangerous to go alone.\nTake this!", 38));
+	audio_play(audio, "blip", 1.f);
 }
 
 static void
@@ -228,4 +235,19 @@ delete_on_collision(int first, int second, void *ctx)
 {
 	LOG_INFO("removing entity #%d", second);
 	entity_delete(game_state->entity_manager, second);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
+	audio_play(audio, "blip", 1.f);
 }

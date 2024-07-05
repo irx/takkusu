@@ -26,16 +26,22 @@
  * Audio system
  */
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-//#include <portaudio.h>
+#include <portaudio.h>
 
 #include "log.h"
 #include "audio.h"
 #include "dict.h"
+#include "ff.h"
 
-#define MIXER_BUFSIZ 65536
+#define SAMPLE_RATE 44100
+#define MIXER_BUFSIZ (SAMPLE_RATE*10)
+#define FRAMES_PER_BUFFER 1024
 
 typedef struct samples Samples;
 struct samples {
@@ -51,6 +57,10 @@ struct audio {
 
 static int16_t mixer_buf[MIXER_BUFSIZ];
 static size_t mixer_buf_index;
+static PaStream *stream;
+
+//static int portaudio_cb(const void *, void *, unsigned long, const PaStreamCallbackTimeInfo *, PaStreamCallbackFlags, void *);
+static int audio_restart(void);
 
 Audio *
 audio_create(void)
@@ -97,7 +107,7 @@ audio_load(Audio *audio, const char *name, const char *path)
 		LOG_FATAL("failed allocating mem for audio samples");
 	s->next = NULL;
 	s->size = 0;
-	//s->size = snd_load(&(s->data), path);
+	s->size = snd_load(&(s->data), path);
 	dict_put(audio->map, name, s);
 	if (!audio->shead) {
 		audio->shead = audio->stail = s;
@@ -126,18 +136,110 @@ audio_play(Audio *audio, const char *name, float volume)
 		return;
 	}
 	/* add samples to the mixer buffer */
-	for (i = mixer_buf_index; i < s->size; ++i)
-		mixer_buf[i % MIXER_BUFSIZ] += (int16_t)(s->data[i] * volume);
+	for (i = 0; i < s->size; ++i)
+		mixer_buf[(mixer_buf_index + i) % MIXER_BUFSIZ] += (int16_t)(s->data[i] * volume);
+	LOG_DEBUG("playing `%s' sound (%.1fvol)", name, volume);
 }
 
 int
 audio_init(void)
 {
-	/* TODO */
+	PaError err;
+
+	err = Pa_Initialize();
+	if (err != paNoError)
+		goto initerr;
+
+	/* Open an audio I/O stream. */
+	err = Pa_OpenDefaultStream(&stream,
+			0, /* no input channels */
+			1, /* mono output */
+			paInt16, /* 16 bit int output */
+			SAMPLE_RATE, /* sample rate */
+			paFramesPerBufferUnspecified, /* frames per buffer default */
+			NULL, /* no callback function */
+			NULL); /* no callback ctx */
+	if (err != paNoError)
+		goto initerr;
+
+	err = Pa_StartStream(stream);
+	if (err != paNoError)
+		goto initerr;
+
+	return 0;
+
+initerr:
+	LOG_ERROR("PortAudio error: %s", Pa_GetErrorText(err));
+	return -1;
+}
+
+int
+audio_exit(void)
+{
+	PaError err;
+
+	err = Pa_StopStream(stream);
+	if (err != paNoError) {
+		LOG_ERROR("PortAudio error: failed to close stream: %s", Pa_GetErrorText(err));
+		return -1;
+	}
+	err = Pa_Terminate();
+	if (err != paNoError) {
+		LOG_ERROR("PortAudio error: %s", Pa_GetErrorText(err));
+		return -1;
+	}
 	return 0;
 }
 
-/*
+void
+audio_flush(void)
+{
+	int16_t buf[FRAMES_PER_BUFFER];
+	long cnt;
+	size_t i;
+	PaError err;
+
+	cnt = Pa_GetStreamWriteAvailable(stream);
+	if (cnt < 1) {
+		/* TODO check for errors; assume deadline not met because of underrrun for now */
+		LOG_ERROR("no frames can be written to the audio stream; possible underrun");
+		audio_restart();
+		return;
+	}
+	if (cnt > FRAMES_PER_BUFFER)
+		cnt = FRAMES_PER_BUFFER;
+	for (i = 0; i < cnt; ++i) {
+		buf[i] = mixer_buf[mixer_buf_index];
+		mixer_buf[mixer_buf_index] = 0;
+		mixer_buf_index = (mixer_buf_index + 1) % MIXER_BUFSIZ;
+	}
+	err = Pa_WriteStream(stream, buf, cnt);
+	if (err != paNoError) {
+		LOG_ERROR("PortAudio error: stream write error: %s", Pa_GetErrorText(err));
+		audio_restart();
+	}
+}
+
+static int
+audio_restart(void)
+{
+	PaError err;
+
+	LOG_WARNING("attempting to restart audio stream");
+	err = Pa_StopStream(stream);
+	if (err != paNoError) {
+		LOG_ERROR("PortAudio error: failed to close stream: %s", Pa_GetErrorText(err));
+		return -1;
+	}
+	err = Pa_StartStream(stream);
+	if (err != paNoError) {
+		LOG_ERROR("PortAudio error: failed to reopen stream: %s", Pa_GetErrorText(err));
+		return -1;
+	}
+	return 0;
+}
+
+/* TODO to be removed; synchronous write is used instead
 static int
 portaudio_cb(
 	const void *inbuf, void *outbuf,
@@ -146,7 +248,7 @@ portaudio_cb(
 	PaStreamCallbackFlags flags,
 	void *ctx)
 {
-	float *out;
+	int16_t *out;
 	unsigned long i;
 
 	(void)ctx;
@@ -154,13 +256,13 @@ portaudio_cb(
 	(void)time_info;
 	(void)flags;
 
-	out = (float *)outbuf;
+	out = (int16_t *)outbuf;
 	for (i = 0; i < frames_per_buffer; ++i) {
-		*out++ = (float)mixer_buf[mixer_buf_index];
+		*out++ = mixer_buf[mixer_buf_index];
 		mixer_buf[mixer_buf_index] = 0;
 		mixer_buf_index = (mixer_buf_index + 1) % MIXER_BUFSIZ;
 	}
 
-	return 0;
+	return paContinue;
 }
 */

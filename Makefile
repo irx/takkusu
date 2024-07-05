@@ -1,6 +1,6 @@
 .POSIX:
 .PHONY: all clean install run test
-.SUFFIXES: .c .h .o .rc .res .ff.bz2 .ff .ff.h
+.SUFFIXES: .c .h .o .rc .res .ff.bz2 .ff .ff.h .snd.bz2 .snd .snd.h
 
 VERSION = 0.1-rc
 BUILD_INFO =
@@ -15,8 +15,8 @@ PREFIX = /usr/local/bin
 INC = -I/usr/local/include
 LIB = -L/usr/local/lib
 CFLAGS = -std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \
-	${INC} -DVERSION=\"${VERSION}\" -DBUILD_INFO="\"${BUILD_INFO}\"" -DGLEW_STATIC
-LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm
+	${INC} -DVERSION=\"${VERSION}\" -DBUILD_INFO="\"${BUILD_INFO}\"" -DGLEW_STATIC -g
+LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm -lportaudio
 
 EXTRA_OBJ =
 EXTRA_HDR =
@@ -41,12 +41,18 @@ HDR = \
 
 -include config.mk
 
-ASSETS = assets/ibm10x22.ff \
+IMG_ASSETS = \
+	assets/ibm10x22.ff \
 	assets/tux.ff \
 	assets/grass.ff \
 	assets/sand.ff \
 	assets/sword.ff
-HASSETS = ${ASSETS:.ff=.ff.h}
+SND_ASSETS = \
+	assets/blip.snd
+ASSETS = ${IMG_ASSETS} ${SND_ASSETS}
+IMG_ASSETS_H = ${IMG_ASSETS:.ff=.ff.h}
+SND_ASSETS_H = ${SND_ASSETS:.snd=.snd.h}
+ASSETS_H = ${IMG_ASSETS_H} ${SND_ASSETS_H}
 
 all: takkusu ${ASSETS}
 
@@ -64,11 +70,17 @@ takkusu: ${HDR} ${OBJ}
 .ff.ff.h:
 	${BIN2HDR} "$<" > $@
 
+.snd.bz2.snd:
+	bzip2 -dc $< > $@
+
+.snd.snd.h:
+	${BIN2HDR} "$<" > $@
+
 bin2hdr: src/bin2hdr.c
 	@echo HOSTCC $<
 	@${HOSTCC} -o $@ $<
 
-src/assets_data.gen.h: embed_assets.sh ${HASSETS}
+src/assets_data.gen.h: embed_assets.sh ${ASSETS_H}
 	./embed_assets.sh ${ASSETS}
 
 src/vfs.o: src/assets_data.gen.h
@@ -79,7 +91,7 @@ src/vfs.o: src/assets_data.gen.h
 
 clean:
 	rm -f ${OBJ}
-	rm -f src/assets_data.gen.h ${HASSETS}
+	rm -f src/assets_data.gen.h ${ASSETS_H}
 	rm -f test/*.o *.test
 
 install: test
