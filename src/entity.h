@@ -43,6 +43,7 @@ typedef struct game_state GameState;
 struct game_state {
 	GameState *prev;
 	Gc *gc;
+	Audio *audio;
 	EntityManager *entity_manager;
 };
 

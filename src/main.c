@@ -26,6 +26,7 @@
  * Test entity and rendering system
  */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,10 +35,10 @@
 #include "log.h"
 #include "ff.h"
 #include "render.h"
+#include "audio.h"
 #include "entity.h"
 #include "sched.h"
 #include "dict.h"
-#include "audio.h"
 
 #ifdef EMBED_ASSETS
 void vfs_init(void);
@@ -103,6 +104,7 @@ main(void)
 	audio_load(audio, "blip", "assets/blip.snd");
 	game_state = &state;
 	state.gc = gc;
+	state.audio = audio;
 	state.prev = NULL;
 	state.entity_manager = create_entity_manager();
 	if (state.entity_manager == NULL) {

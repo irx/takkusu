@@ -35,6 +35,7 @@
 #include "log.h"
 #include "ff.h"
 #include "render.h"
+#include "audio.h"
 #include "entity.h"
 //#include "sched.h"
 
@@ -43,6 +44,8 @@
 
 #define ANIM_TICKS_PER_FRAME 150
 #define ANIM_TEXT_TICKS_PER_FRAME ANIM_TICKS_PER_FRAME/2
+#define ANIM_TEXT_CHARS_PER_FRAME 3
+#define ANIM_TEXT_SOUND "blip"
 #define ANIM_MAX_FRAMES 4
 
 enum anim_fields {
@@ -97,10 +100,10 @@ static size_t entity_get_subset(const EntityManager *, int *, size_t, uint32_t);
 /* Entity `Systems' functions declarations */
 static void entity_render(EntityManager *, Gc *, int *, size_t);
 static void entity_render_texts(EntityManager *, Gc *, int *, size_t);
-static void entity_accelerate(EntityManager *, int *, size_t);
-static void entity_displace(EntityManager *, int *, size_t);
-static void entity_animate_vel(EntityManager *, int *, size_t);
-static void entity_animate_text(EntityManager *, int *, size_t);
+static void entity_accelerate(GameState *, int *, size_t);
+static void entity_displace(GameState *, int *, size_t);
+static void entity_animate_vel(GameState *, int *, size_t);
+static void entity_animate_text(GameState *, int *, size_t);
 
 #define NSYSTEMS 4
 #define NRENDERSYSTEMS 2
@@ -109,7 +112,7 @@ static void entity_animate_text(EntityManager *, int *, size_t);
 static const struct {
 	uint32_t mask; /* system signature; a mask for filtering entity list before
 	                  passing it over to the `system' function */
-	void (*fn)(EntityManager *, int *, size_t); /* `system' function ptr */
+	void (*fn)(GameState *, int *, size_t); /* `system' function ptr */
 } systems_vtable[NSYSTEMS] = {
 	{
 		/* move controllable objects (e.g. player) */
@@ -289,7 +292,7 @@ process_tick(GameState *state)
 
 	for (i = 0; i < NSYSTEMS; ++i) {
 		cnt = entity_get_subset(state->entity_manager, &ids[0], MAX_ENTITIES, systems_vtable[i].mask);
-		systems_vtable[i].fn(state->entity_manager, ids, cnt);
+		systems_vtable[i].fn(state, ids, cnt);
 	}
 }
 
@@ -356,11 +359,13 @@ entity_render_texts(EntityManager *emgr, Gc *gc, int *ids, size_t cnt)
 }
 
 static void
-entity_accelerate(EntityManager *emgr, int *ids, size_t cnt)
+entity_accelerate(GameState *state, int *ids, size_t cnt)
 {
 	int i, id;
 	Input user_input;
+	EntityManager *emgr;
 
+	emgr = state->entity_manager;
 	user_input = gc_poll_input();
 	if (user_input.dx && user_input.dy) {
 		user_input.dx *= .7f;
@@ -374,10 +379,12 @@ entity_accelerate(EntityManager *emgr, int *ids, size_t cnt)
 }
 
 static void
-entity_displace(EntityManager *emgr, int *ids, size_t cnt)
+entity_displace(GameState *state, int *ids, size_t cnt)
 {
 	int i, id;
+	EntityManager *emgr;
 
+	emgr = state->entity_manager;
 	for (i = 0; i < cnt; ++i) {
 		id = ids[i];
 		emgr->components.vel[id].x = (emgr->components.vel[id].x + emgr->components.acc[id].x) * .9f;
@@ -388,11 +395,13 @@ entity_displace(EntityManager *emgr, int *ids, size_t cnt)
 }
 
 static void
-entity_animate_vel(EntityManager *emgr, int *ids, size_t cnt)
+entity_animate_vel(GameState *state, int *ids, size_t cnt)
 {
 	int i, id;
 	Vec2 vel;
+	EntityManager *emgr;
 
+	emgr = state->entity_manager;
 	for (i = 0; i < cnt; ++i) {
 		id = ids[i];
 		vel = emgr->components.vel[id];
@@ -428,12 +437,14 @@ entity_animate_vel(EntityManager *emgr, int *ids, size_t cnt)
 }
 
 static void
-entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
+entity_animate_text(GameState *state, int *ids, size_t cnt)
 {
 	int i, id;
 	size_t slen;
 	Text *txt;
+	EntityManager *emgr;
 
+	emgr = state->entity_manager;
 	for (i = 0; i < cnt; ++i) {
 		id = ids[i];
 		txt = &emgr->components.text[id];
@@ -442,7 +453,8 @@ entity_animate_text(EntityManager *emgr, int *ids, size_t cnt)
 			continue;
 
 		emgr->components.anim[id][0] = 0;
-		++txt->len;
+		txt->len += ANIM_TEXT_CHARS_PER_FRAME;
+		audio_play(state->audio, ANIM_TEXT_SOUND, 1.f);
 
 		slen = strlen(txt->str);
 		if (txt->len >= slen) { /* animation is finished */

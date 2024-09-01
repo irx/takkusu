@@ -27,8 +27,12 @@
  */
 
 #include <unistd.h>
+#ifndef _WIN32
+# include <arpa/inet.h>
+#else
+# include <winsock.h>
+#endif /* _WIN32 */
 #include <fcntl.h>
-#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -59,7 +63,6 @@ static int16_t mixer_buf[MIXER_BUFSIZ];
 static size_t mixer_buf_index;
 static PaStream *stream;
 
-//static int portaudio_cb(const void *, void *, unsigned long, const PaStreamCallbackTimeInfo *, PaStreamCallbackFlags, void *);
 static int audio_restart(void);
 
 Audio *
@@ -138,7 +141,7 @@ audio_play(Audio *audio, const char *name, float volume)
 	/* add samples to the mixer buffer */
 	for (i = 0; i < s->size; ++i)
 		mixer_buf[(mixer_buf_index + i) % MIXER_BUFSIZ] += (int16_t)(s->data[i] * volume);
-	LOG_DEBUG("playing `%s' sound (%.1fvol)", name, volume);
+	LOG_TRACE("playing `%s' sound (%.1fvol)", name, volume);
 }
 
 int
@@ -238,31 +241,3 @@ audio_restart(void)
 	}
 	return 0;
 }
-
-/* TODO to be removed; synchronous write is used instead
-static int
-portaudio_cb(
-	const void *inbuf, void *outbuf,
-	unsigned long frames_per_buffer,
-	const PaStreamCallbackTimeInfo *time_info,
-	PaStreamCallbackFlags flags,
-	void *ctx)
-{
-	int16_t *out;
-	unsigned long i;
-
-	(void)ctx;
-	(void)inbuf;
-	(void)time_info;
-	(void)flags;
-
-	out = (int16_t *)outbuf;
-	for (i = 0; i < frames_per_buffer; ++i) {
-		*out++ = mixer_buf[mixer_buf_index];
-		mixer_buf[mixer_buf_index] = 0;
-		mixer_buf_index = (mixer_buf_index + 1) % MIXER_BUFSIZ;
-	}
-
-	return paContinue;
-}
-*/

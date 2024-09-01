@@ -26,6 +26,7 @@
  * Schedule timed events
  */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,7 @@
 #include "log.h"
 #include "ff.h"
 #include "render.h"
+#include "audio.h"
 #include "entity.h"
 
 #define MAX_SCHEDS 256
