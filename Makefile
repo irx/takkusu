@@ -4,6 +4,7 @@
 
 VERSION = 0.1-rc
 BUILD_INFO =
+OUTBIN = takkusu
 
 # platform dependent params
 # defaults should be ok for most systems
@@ -27,6 +28,9 @@ OBJ = \
 	src/entity.o \
 	src/sched.o \
 	src/audio.o \
+	src/vfs.o \
+	src/fs.o \
+	src/io.o \
 	src/dict.o \
 	src/log.o \
 	${EXTRA_OBJ}
@@ -35,6 +39,9 @@ HDR = \
 	src/ff.h \
 	src/entity.h \
 	src/audio.h \
+	src/vfs.h \
+	src/fs.h \
+	src/io.h \
 	src/dict.h \
 	src/log.h \
 	${EXTRA_HDR}
@@ -54,7 +61,7 @@ IMG_ASSETS_H = ${IMG_ASSETS:.ff=.ff.h}
 SND_ASSETS_H = ${SND_ASSETS:.snd=.snd.h}
 ASSETS_H = ${IMG_ASSETS_H} ${SND_ASSETS_H}
 
-all: takkusu ${ASSETS}
+all: ${OUTBIN} ${ASSETS}
 
 takkusu: ${HDR} ${OBJ}
 	@echo LD $@
@@ -82,8 +89,6 @@ bin2hdr: src/bin2hdr.c
 
 src/assets_data.gen.h: embed_assets.sh ${ASSETS_H}
 	./embed_assets.sh ${ASSETS}
-
-src/vfs.o: src/assets_data.gen.h
 
 .rc.res:
 	@echo WINDRES $<

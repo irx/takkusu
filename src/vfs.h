@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2022-2025 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,70 +23,10 @@
  * SUCH DAMAGE.
  *
  *
- * Generalised input/output streams
+ * Virtual file system
  */
 
-#include "u.h"
-#include "log.h"
-#include "io.h"
-#include "fs.h"
-#include "vfs.h"
 
-
-Stream *
-io_open(const char *name, int flags)
-{
-#ifndef EMBED_ASSETS
-	return fs_open(name, flags);
-#else
-	return vfs_open(name, flags);
-#endif /* EMBED_ASSETS */
-}
-
-ssize
-io_read(Stream *s, void *dst, usize len)
-{
-	if (!s)
-		LOG_FATAL("stream is nil");
-	if (!s->vtable)
-		LOG_FATAL("invalid stream");
-	if (!s->vtable->read)
-		LOG_FATAL("stream reader unimplemented");
-	return s->vtable->read(s, dst, len);
-}
-
-ssize
-io_write(Stream *s, const void *src, usize len)
-{
-	if (!s)
-		LOG_FATAL("stream is nil");
-	if (!s->vtable)
-		LOG_FATAL("invalid stream");
-	if (!s->vtable->write)
-		LOG_FATAL("stream writer unimplemented");
-	return s->vtable->write(s, src, len);
-}
-
-int
-io_close(Stream *s)
-{
-	if (!s)
-		LOG_FATAL("stream is nil");
-	if (!s->vtable)
-		LOG_FATAL("invalid stream");
-	if (!s->vtable->close)
-		LOG_FATAL("stream closer unimplemented");
-	return s->vtable->close(s);
-}
-
-ssize
-io_seek(Stream *s, ssize n, int type)
-{
-	if (!s)
-		LOG_FATAL("stream is nil");
-	if (!s->vtable)
-		LOG_FATAL("invalid stream");
-	if (!s->vtable->close)
-		LOG_FATAL("stream seeker unimplemented");
-	return s->vtable->seek(s, n, type);
-}
+void vfs_init(void);
+void vfs_add_file(const char *, void *, usize);
+Stream * vfs_open(const char *, int);

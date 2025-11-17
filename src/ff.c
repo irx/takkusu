@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2021 Max Mruszczak <u at one u x dot o r g>
+ * Copyright (c) 2021-2025 Max Mruszczak <u at one u x dot o r g>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,7 @@
  *
  *
  * Read farbfeld image
+ * and .snd/.au for now...
  */
 
 #include <unistd.h>
@@ -39,22 +40,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "u.h"
 #include "log.h"
+#include "io.h"
 #include "ff.h"
-
-#ifndef EMBED_ASSETS
-# ifndef _WIN32
-#  define aopen(...) open(__VA_ARGS__)
-# else
-#  define aopen(path, flags) open(path, flags | O_BINARY)
-# endif /* _WIN32 */
-# define aread(...) read(__VA_ARGS__)
-# define aclose(...) close(__VA_ARGS__)
-#else
-int aopen(const char *, int);
-ssize_t aread(int, void *, size_t);
-# define aclose(...)
-#endif /* EMBED_ASSETS */
 
 #define SAMPLE_RATE 44100 /* expected sample rate of audio file read by `snd_load' */
 #define MUL_BOUND(x, y) (y > INT_MAX / x || y < INT_MIN / x)
@@ -66,23 +55,23 @@ typedef struct {
 	} encoding;
 } SndHdr;
 
-static int snd_read_header(int, SndHdr *);
+static int snd_read_header(Stream *, SndHdr *);
 
 Image *
 ff_load(const char *path)
 {
-	int fd;
-	uint8_t hdr[16];
-	uint16_t *rowbuf;
-	size_t rowsiz, i, j, offs, cur;
+	Stream *s;
+	uint8 hdr[16];
+	uint16 *rowbuf;
+	usize rowsiz, i, j, offs, cur;
 	Image *img;
 
 	LOG_DEBUG("loading image asset: %s", path);
-	if ((fd = aopen(path, O_RDONLY)) < 0) {
+	if ((s = io_open(path, IO_RDONLY)) == nil) {
 		LOG_PERROR("couldn't open file");
-		return NULL;
+		return nil;
 	}
-	if (aread(fd, hdr, 16) != 16) {
+	if (io_read(s, hdr, 16) != 16) {
 		LOG_PERROR("couldn't read header");
 		goto err1;
 	}
@@ -117,7 +106,7 @@ ff_load(const char *path)
 
 	cur = 0;
 	for (i = 0; i < img->h; ++i) {
-		if (aread(fd, rowbuf, rowsiz) != rowsiz) {
+		if (io_read(s, rowbuf, rowsiz) != rowsiz) {
 			LOG_PERROR("failed to read image row");
 			free(rowbuf);
 			goto err3;
@@ -132,30 +121,31 @@ ff_load(const char *path)
 	}
 
 	free(rowbuf);
-	aclose(fd);
+	io_close(s);
 	return img;
 
 
 err3:	free(img->d);
 err2:	free(img);
-err1:	aclose(fd);
-	return NULL;
+err1:	io_close(s);
+	return nil;
 }
 
 size_t
 snd_load(int16_t **dst, const char *path)
 {
-	int fd, i;
-	size_t len;
-	ssize_t r;
+	Stream *s;
+	int i;
+	usize len;
+	ssize r;
 	SndHdr hdr;
 
-	fd = aopen(path, O_RDONLY);
-	if (fd < 0) {
+	s = io_open(path, IO_RDONLY);
+	if (!s) {
 		LOG_ERROR("couldn't open %s", path);
 		return 0;
 	}
-	if (snd_read_header(fd, &hdr) < 0) {
+	if (snd_read_header(s, &hdr) < 0) {
 		LOG_ERROR("couldn't read header for %s", path);
 		return 0;
 	}
@@ -172,12 +162,12 @@ snd_load(int16_t **dst, const char *path)
 		LOG_WARNING("audio file `%s' does not specify its size; defaulting to %zu", path, len);
 	} else
 		len = hdr.size;
-	*dst = malloc(sizeof(int16_t)*len);
+	*dst = malloc(sizeof(int16)*len);
 	if (!*dst) {
 		LOG_ERROR("couldn't allocate audio samples memeory");
 		return 0;
 	}
-	r = aread(fd, *dst, sizeof(int16_t)*len);
+	r = io_read(s, *dst, sizeof(int16)*len);
 	if (r < 0) {
 		LOG_PERROR("error loading snd samples");
 		free(*dst);
@@ -188,8 +178,8 @@ snd_load(int16_t **dst, const char *path)
 		free(*dst);
 		return 0;
 	}
-	if (r < sizeof(int16_t)*len) /* TODO trim overallocated space */
-		len = r / sizeof(int16_t);
+	if (r < sizeof(int16)*len) /* TODO trim overallocated space */
+		len = r / sizeof(int16);
 	LOG_DEBUG("read %zu samples from `%s'", len, path);
 	for (i = 0; i < len; ++i)
 		(*dst)[i] = ntohs((*dst)[i]);
@@ -198,13 +188,13 @@ snd_load(int16_t **dst, const char *path)
 }
 
 static int
-snd_read_header(int fd, SndHdr *hdr)
+snd_read_header(Stream *s, SndHdr *hdr)
 {
 	ssize_t r;
-	uint32_t buf[5];
-	uint8_t sign[4];
+	uint32 buf[5];
+	uint8 sign[4];
 
-	r = aread(fd, sign, 4);
+	r = io_read(s, sign, 4);
 	if (r != 4) {
 		return -1;
 	}
@@ -212,19 +202,19 @@ snd_read_header(int fd, SndHdr *hdr)
 	{
 		return -1;
 	}
-	r = aread(fd, buf, sizeof(buf));
+	r = io_read(s, buf, sizeof(buf));
 	if (r != sizeof(buf)) {
 		return -1;
 	}
-	hdr->offset = (size_t)ntohl(buf[0]);
+	hdr->offset = (usize)ntohl(buf[0]);
 	if (hdr->offset < 24) {
 		LOG_ERROR("snd data offset is smaller than the header: %zu", hdr->offset);
 		return -1;
 	}
-	hdr->size = (size_t)ntohl(buf[1]);
+	hdr->size = (usize)ntohl(buf[1]);
 	hdr->encoding = ntohl(buf[2]);
-	hdr->rate = (size_t)ntohl(buf[3]);
-	hdr->chan = (size_t)ntohl(buf[4]);
+	hdr->rate = (usize)ntohl(buf[3]);
+	hdr->chan = (usize)ntohl(buf[4]);
 	/* TODO seek based on offset */
 
 	return 0;

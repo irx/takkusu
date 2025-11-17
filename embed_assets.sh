@@ -6,7 +6,7 @@ echo "#define NFILES $#" > "${out_file}.part1"
 printf '#define ADD_ASSETS() \\\n' > "${out_file}.part2"
 for asset ; do
 	name="$(echo "${asset}" | tr '/\-\. ' '_')"
-	printf 'add_asset("%s", (void *)&%s[0], sizeof(%s)); \\\n' "${asset}" "${name}" "${name}" >> "${out_file}.part2"
+	printf 'vfs_add_file("%s", (void *)&%s[0], sizeof(%s)); \\\n' "${asset}" "${name}" "${name}" >> "${out_file}.part2"
 	printf '#include "%s.h"\n' "../${asset}" >> "${out_file}.part1"
 done
 echo >> "${out_file}.part1"

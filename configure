@@ -71,7 +71,6 @@ done
 
 [ "${static}" = "y" ] && CFLAGS="${CFLAGS} -static"
 [ "${embed_assets}" = "y" ] && CFLAGS="${CFLAGS} -DEMBED_ASSETS" \
-	&& EXTRA_OBJ="${EXTRA_OBJ} src/vfs.o" \
 	&& EXTRA_HDR="${EXTRA_HDR} src/assets_data.gen.h" \
 	&& [ ! -x "$(command -v xxd)" ] && BIN2HDR="./bin2hdr"
 [ "${enable_log_trace}" = "y" ] || [ "${debug_mode}" = "y" ] && CFLAGS="${CFLAGS} -DENABLE_LOG_TRACE"
@@ -79,6 +78,7 @@ done
 
 printf '# generated on %s\n\n' "$(date)" > config.mk
 {
+	# additional variables
 	echo "BUILD_INFO = $(uname -r) $(uname -m)"
 	[ -n "${TOOLCHAIN}" ] \
 		&& printf 'TOOLCHAIN = %s\nCC = %s\nWINDRES = %s\n' "${TOOLCHAIN}" '${TOOLCHAIN}gcc' '${TOOLCHAIN}windres'
@@ -92,8 +92,13 @@ printf '# generated on %s\n\n' "$(date)" > config.mk
 	[ -n "${EXTRA_OBJ}" ] && echo "EXTRA_OBJ = ${EXTRA_OBJ}"
 	[ -n "${EXTRA_HDR}" ] && echo "EXTRA_HDR = ${EXTRA_HDR}"
 	[ "${win32_target}" = "y" ] && echo "LDFLAGS = \${LIB} -lglew32s -lGLEW -lglfw3 -lm -lopengl32 -lws2_32 -lgdi32 -lportaudio -lole32 -lwinmm -lsetupapi" \
-		&& printf '\ntakkusu.exe: takkusu\n\tmv $< $@\n'
+		&& echo "OUTBIN = takkusu.exe"
+
+	# additional targets
 	[ "${debug_mode}" = "y" ] && printf '\nrun: all\n\t./takkusu\n'
+	printf '\nall: ${OUTBIN} ${ASSETS}\n' # ensure `all' takes precedence over following targets
+	[ "${win32_target}" = "y" ] && printf '\ntakkusu.exe: takkusu\n\tmv $< $@\n'
+	[ "${embed_assets}" = "y" ] && printf '\nsrc/vfs.o: src/assets_data.gen.h\n'
 } >> config.mk
 
 # optionally build `bin2hdr' (binary file to C header converter) as an
