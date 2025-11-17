@@ -116,5 +116,10 @@ entity.test: test/entity.o src/entity.o src/dict.o src/ff.o src/render.o src/log
 	@echo LD $@
 	@${CC} -o $@ test/entity.o src/entity.o src/dict.o src/ff.o src/render.o src/log.o ${LDFLAGS}
 
+fs.test: test/fs.o src/log.o src/io.o src/fs.o
+	@echo LD $@
+	@${CC} -o $@ test/fs.o src/fs.o src/io.o src/log.o ${LDFLAGS}
+
 test/dict.o: src/dict.h src/log.h
 test/entity.o: src/entity.h src/dict.h src/ff.h src/render.h src/log.h
+test/fs.o: src/log.h src/io.h src/fs.h
