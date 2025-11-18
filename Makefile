@@ -50,6 +50,7 @@ HDR = \
 
 IMG_ASSETS = \
 	assets/ibm10x22.ff \
+	assets/ibm8x16.ff \
 	assets/tux.ff \
 	assets/grass.ff \
 	assets/sand.ff \

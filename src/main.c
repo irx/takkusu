@@ -147,12 +147,12 @@ main(void)
 	free(img);
 
 	/* load font */
-	img = ff_load("assets/ibm10x22.ff");
+	img = ff_load("assets/ibm8x16.ff");
 	if (!img) {
 		LOG_ERROR("error loading sprite");
 		return 1;
 	}
-	main_font = gc_create_sprite(gc, img, 10, 22);
+	main_font = gc_create_sprite(gc, img, 8, 16);
 	free(img->d);
 	free(img);
 
