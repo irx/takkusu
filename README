@@ -14,6 +14,7 @@ deps:
  - GLFW3
  - GLEW
  - PortAudio
+ - libbzip2
 
 
  =========
@@ -49,7 +50,7 @@ example:
 Cross-compile it using mxe[1]
 
  % git clone --recursive https://github.com/mxe/mxe.git
- % make -C mxe glfw3 glew portaudio
+ % make -C mxe glfw3 glew portaudio bzip2
 in project dir:
  % ./configure HOSTCC=cc --win32 --embed-assets \
    --toolchain="${mxe_path}/usr/bin/i686-w64-mingw32.static-" \

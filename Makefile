@@ -17,7 +17,7 @@ INC = -I/usr/local/include
 LIB = -L/usr/local/lib
 CFLAGS = -std=c99 -pedantic -Wall -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_BSD_SOURCE \
 	${INC} -DVERSION=\"${VERSION}\" -DBUILD_INFO="\"${BUILD_INFO}\"" -DGLEW_STATIC -g
-LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm -lportaudio
+LDFLAGS = ${LIB} -lGL -lglfw -lGLEW -lm -lportaudio -lbz2
 
 EXTRA_OBJ =
 EXTRA_HDR =
@@ -28,6 +28,7 @@ OBJ = \
 	src/entity.o \
 	src/sched.o \
 	src/audio.o \
+	src/bz.o \
 	src/vfs.o \
 	src/fs.o \
 	src/io.o \
@@ -39,6 +40,7 @@ HDR = \
 	src/ff.h \
 	src/entity.h \
 	src/audio.h \
+	src/bz.h \
 	src/vfs.h \
 	src/fs.h \
 	src/io.h \
@@ -126,6 +128,11 @@ fs.test: test/fs.o src/log.o src/io.o src/fs.o
 	@echo LD $@
 	@${CC} -o $@ test/fs.o src/fs.o src/io.o src/log.o ${LDFLAGS}
 
+bz.test: test/bz.o src/log.o src/io.o src/fs.o src/bz.o
+	@echo LD $@
+	@${CC} -o $@ test/bz.o src/bz.o src/fs.o src/io.o src/log.o ${LDFLAGS}
+
 test/dict.o: src/dict.h src/log.h
 test/entity.o: src/entity.h src/dict.h src/ff.h src/render.h src/log.h
 test/fs.o: src/log.h src/io.h src/fs.h
+test/bz.o: src/log.h src/io.h src/fs.h src/bz.h

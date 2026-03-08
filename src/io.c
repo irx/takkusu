@@ -31,16 +31,24 @@
 #include "io.h"
 #include "fs.h"
 #include "vfs.h"
+#include "bz.h"
+
+
+static int has_bz_suffix(const char *);
 
 
 Stream *
 io_open(const char *name, int flags)
 {
+	Stream *s;
 #ifndef EMBED_ASSETS
-	return fs_open(name, flags);
+	s = fs_open(name, flags);
 #else
-	return vfs_open(name, flags);
+	s = vfs_open(name, flags);
 #endif /* EMBED_ASSETS */
+	if (s && has_bz_suffix(name))
+		s = bz_open(s, flags);
+	return s;
 }
 
 ssize
@@ -89,4 +97,16 @@ io_seek(Stream *s, ssize n, int type)
 	if (!s->vtable->close)
 		LOG_FATAL("stream seeker unimplemented");
 	return s->vtable->seek(s, n, type);
+}
+
+static int
+has_bz_suffix(const char *s)
+{
+	usize len;
+
+	for (len = 0; s[len] != '\0'; ++len)
+		;
+	if (len < 4)
+		return 0;
+	return (s[len-4] == '.' && s[len-3] == 'b' && s[len-2] == 'z' && s[len-1] == '2');
 }
