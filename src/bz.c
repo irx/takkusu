@@ -37,6 +37,7 @@
 
 #define MAX_STREAMS 32
 #define BZ_BUFSIZ BUFSIZ
+#define BZ_MAX_BLOCKSIZE (1024*900)
 
 
 static ssize bz_read(Stream *, void *, usize);
@@ -90,7 +91,7 @@ bz_read(Stream *s, void *dst, usize len)
 {
 	struct bz_stream *bs;
 	ssize nread;
-	usize rlimit = 10; /* limit decompress calls in case input data is missing */
+	usize rlimit = BZ_MAX_BLOCKSIZE / BZ_BUFSIZ + 1; /* limit decompress calls in case input data is missing */
 
 	bs = (struct bz_stream *)s;
 	bs->bzs.next_out = dst;

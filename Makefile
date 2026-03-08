@@ -1,6 +1,6 @@
 .POSIX:
 .PHONY: all clean install run test
-.SUFFIXES: .c .h .o .rc .res .ff.bz2 .ff .ff.h .snd.bz2 .snd .snd.h
+.SUFFIXES: .c .h .o .rc .res .bz2 .bz2.h .ff.bz2 ff.bz2.h .ff .ff.h .snd.bz2 .snd .snd.h
 
 VERSION = 0.1-rc
 BUILD_INFO =
@@ -51,16 +51,16 @@ HDR = \
 -include config.mk
 
 IMG_ASSETS = \
-	assets/ibm10x22.ff \
-	assets/ibm8x16.ff \
-	assets/tux.ff \
-	assets/grass.ff \
-	assets/sand.ff \
-	assets/sword.ff
+	assets/ibm10x22.ff.bz2 \
+	assets/ibm8x16.ff.bz2 \
+	assets/tux.ff.bz2 \
+	assets/grass.ff.bz2 \
+	assets/sand.ff.bz2 \
+	assets/sword.ff.bz2
 SND_ASSETS = \
 	assets/blip.snd
 ASSETS = ${IMG_ASSETS} ${SND_ASSETS}
-IMG_ASSETS_H = ${IMG_ASSETS:.ff=.ff.h}
+IMG_ASSETS_H = ${IMG_ASSETS:.ff.bz2=.ff.bz2.h}
 SND_ASSETS_H = ${SND_ASSETS:.snd=.snd.h}
 ASSETS_H = ${IMG_ASSETS_H} ${SND_ASSETS_H}
 
@@ -84,6 +84,9 @@ takkusu: ${HDR} ${OBJ}
 	bzip2 -dc $< > $@
 
 .snd.snd.h:
+	${BIN2HDR} "$<" > $@
+
+.bz2.bz2.h:
 	${BIN2HDR} "$<" > $@
 
 bin2hdr: src/bin2hdr.c

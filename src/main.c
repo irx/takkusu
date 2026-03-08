@@ -119,7 +119,7 @@ main(void)
 	}
 
 	memset(&e, 0, sizeof(EntityInfo));
-	img = ff_load("assets/tux.ff");
+	img = ff_load("assets/tux.ff.bz2");
 	if (!img) {
 		LOG_ERROR("error loading sprite");
 		return 1;
@@ -141,13 +141,13 @@ main(void)
 	npc = entity_spawn(state.entity_manager, e);
 	set_collsion(state.entity_manager, player, npc, test_collision, NULL);
 
-	img = ff_load("assets/sword.ff");
+	img = ff_load("assets/sword.ff.bz2");
 	test_event_ctx = gc_create_sprite(gc, img, 32, 32);
 	free(img->d);
 	free(img);
 
 	/* load font */
-	img = ff_load("assets/ibm8x16.ff");
+	img = ff_load("assets/ibm8x16.ff.bz2");
 	if (!img) {
 		LOG_ERROR("error loading sprite");
 		return 1;
@@ -156,7 +156,7 @@ main(void)
 	free(img->d);
 	free(img);
 
-	img = ff_load("assets/grass.ff");
+	img = ff_load("assets/grass.ff.bz2");
 	if (!img) {
 		LOG_ERROR("error loading sprite");
 		return 1;
